@@ -1,14 +1,17 @@
-# Virtualenv / cache / artifacts
+# Entorno virtual
 .venv/
+
+# Archivos de cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Local data & logs
-src/backend/logs/
-src/backend/data/*.db
+# Config local
+.env
+.vscode/
 
-# OS cruft
-.DS_Store
-Thumbs.db
+# Dependencias Node (si hay frontend)
+node_modules/
+dist/
+build/
