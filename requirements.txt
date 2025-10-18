@@ -1,0 +1,17 @@
+Flask
+Flask-Cors
+gunicorn
+Werkzeug
+itsdangerous
+Jinja2
+click
+pandas
+requests
+bcrypt
+sqlalchemy
+pydantic[email]>=2.0
+PyJWT
+openpyxl
+reportlab
+scikit-learn
+numpy
