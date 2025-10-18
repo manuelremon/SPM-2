@@ -1,6 +1,9 @@
 from __future__ import annotations
 import os
 from typing import List
+from dotenv import load_dotenv   # ✅
+
+load_dotenv()  # ✅ carga variables del .env antes de definir Settings
 
 def _split_csv(env: str, default: str) -> List[str]:
     raw = os.getenv(env, default)

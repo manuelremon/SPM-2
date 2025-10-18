@@ -1,27 +1,31 @@
+from __future__ import annotations  # ← debe ir primero, sin nada antes
 
-from __future__ import annotations
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from flask import Flask, jsonify, request, g
-from flask import current_app
-from flask_cors import CORS
 import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Standard library
 from logging.handlers import RotatingFileHandler
-from backend.config import Settings
-from backend.db import health_ok
-from backend.routes.auth import bp as auth_bp
-from backend.routes.materiales import bp as mat_bp
-from backend.routes.solicitudes import bp as sol_bp
-from backend.routes.notificaciones import bp as notif_bp
-from backend.routes.admin import bp as admin_bp
-from backend.routes.presupuestos import bp as presup_bp
-# from backend.routes.chatbot import bp as chatbot_bp  # Temporalmente comentado para testing
-from backend.routes.catalogos import bp as catalogos_bp
-from backend.routes.archivos import bp as archivos_bp
-from backend.routes.planificador import bp as planner_bp
-from backend.routes.abastecimiento import bp as abastecimiento_bp
-# from backend.routes.ai import bp as ai_bp
+import os
+
+# Third-party
+from flask import Flask, current_app, g, jsonify, request
+from flask_cors import CORS  # type: ignore[import]
+
+# Local package
+from .config import Settings
+from .db import health_ok
+from .routes.admin import bp as admin_bp
+from .routes.abastecimiento import bp as abastecimiento_bp
+from .routes.archivos import bp as archivos_bp
+from .routes.auth import bp as auth_bp
+from .routes.catalogos import bp as catalogos_bp
+from .routes.materiales import bp as mat_bp
+from .routes.notificaciones import bp as notif_bp
+from .routes.planificador import bp as planner_bp
+from .routes.presupuestos import bp as presup_bp
+from .routes.solicitudes import bp as sol_bp
+from .routes.chatbot import bp as chatbot_bp
+from .routes.ai import bp as ai_bp
 
 def _setup_logging(app: Flask) -> None:
     Settings.ensure_dirs()
@@ -30,7 +34,7 @@ def _setup_logging(app: Flask) -> None:
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
-    app.logger.setLevel(logging.INFO)
+    app.logger.setLevel(logging.DEBUG)
 
 def create_app() -> Flask:
     # Serve the frontend from ../frontend as the app's static folder
@@ -79,11 +83,11 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(presup_bp)
     app.register_blueprint(planner_bp)
-    # app.register_blueprint(chatbot_bp)  # Temporalmente comentado para testing
+    app.register_blueprint(chatbot_bp)
     app.register_blueprint(catalogos_bp)
     app.register_blueprint(archivos_bp)
     app.register_blueprint(abastecimiento_bp)
-    # app.register_blueprint(ai_bp)
+    app.register_blueprint(ai_bp)
 
     @app.get("/api/health")
     def health():

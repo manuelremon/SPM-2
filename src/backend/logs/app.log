@@ -1,0 +1,363 @@
+2025-10-18 11:40:18,657 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 27, in login
+    cur = con.execute(
+          ^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: usuarios
+2025-10-18 11:40:22,756 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 27, in login
+    cur = con.execute(
+          ^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: usuarios
+2025-10-18 11:40:54,237 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 27, in login
+    cur = con.execute(
+          ^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: usuarios
+2025-10-18 11:44:08,055 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 27, in login
+    cur = con.execute(
+          ^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: usuarios
+2025-10-18 11:57:45,058 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 11:57:48,436 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 12:09:15,672 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 13:50:51,306 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 13:50:59,315 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 13:51:28,489 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 13:52:31,003 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 13:56:57,982 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 13:57:11,588 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:01:13,710 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:02:42,397 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:03:28,072 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:14:05,813 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:24:31,643 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:24:35,697 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:25:08,584 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\auth.py", line 37, in login
+    if not row or not verify_password(row["contrasena"], data.password):
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\security.py", line 20, in verify_password
+    raw = base64.b64decode(stored.encode("ascii"))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\base64.py", line 88, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+2025-10-18 14:29:14,112 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 14:29:22,563 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros

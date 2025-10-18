@@ -34,9 +34,23 @@ def login():
             (data.id, data.id)
         )
         row = cur.fetchone()
-        if not row or not verify_password(row["contrasena"], data.password):
+        valid = False
+        is_plain = False
+        try:
+            valid = verify_password(row["contrasena"], data.password)
+        except Exception:
+            # Para compatibilidad con contraseñas en texto plano
+            if row and row["contrasena"] == data.password:
+                valid = True
+                is_plain = True
+        if not row or not valid:
             return jsonify({"ok": False, "error": {"code": "AUTH", "message": "Credenciales inválidas"}}), 401
         token = create_access_token(row["id_spm"])
+        if is_plain:
+            # Actualizar la contraseña a hash para consistencia futura
+            new_hash = hash_password(data.password)
+            con.execute("UPDATE usuarios SET contrasena = ? WHERE id_spm = ?", (new_hash, row["id_spm"]))
+            con.commit()
         row_dict = dict(row)
         centros = []
         centros_raw = row_dict.get("centros")

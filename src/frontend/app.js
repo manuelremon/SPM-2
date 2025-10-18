@@ -1326,13 +1326,6 @@ function statusBadge(status) {
 
 const DEFAULT_CENTROS = ["1008", "1050", "1500"];
 
-const DEFAULT_ALMACENES_VIRTUALES = [
-  { id: "AV-CENTRAL", label: "AV-CENTRAL - Almacén Central" },
-  { id: "AV-MANT", label: "AV-MANT - Depósito de Mantenimiento" },
-  { id: "AV-REP", label: "AV-REP - Repuestos Críticos" },
-  { id: "AV-SERV", label: "AV-SERV - Servicios Industriales" },
-];
-
 const MATERIAL_SUGGESTION_LIMIT = 100000;
 
 const ADMIN_CONFIG_FIELDS = {
@@ -1517,9 +1510,6 @@ function buildAlmacenOptions() {
     seen.add(key);
   };
   catalogAlmacenes.forEach(addAlmacen);
-  if (!options.length) {
-    DEFAULT_ALMACENES_VIRTUALES.forEach((almacen) => addAlmacen({ codigo: almacen.id, nombre: almacen.label }));
-  }
   return options;
 }
 
@@ -1530,7 +1520,7 @@ function getDefaultCentroValue() {
 
 function getDefaultAlmacenValue() {
   const options = buildAlmacenOptions();
-  return options[0]?.value || DEFAULT_ALMACENES_VIRTUALES[0]?.id || "";
+  return options[0]?.value || "";
 }
 
 function populateCentroSelect() {
@@ -3374,6 +3364,16 @@ function handleAccountFieldEdit(fieldKey) {
   }
   openAccountEditModal(fieldKey, config);
 }
+
+function formatUserCentersList() {
+  const centers = parseCentrosList(state.me?.centros);
+  if (!centers.length) {
+    return [];
+  }
+  const catalog = getCatalogItems("centros", { activeOnly: true });
+  return centers.map((code) => {
+    const normalized = normalizeCentroCode(code);
+    const match = catalog.find((item) => normalizeCentroCode(item.codigo) === normalized);
 
 function formatUserCentersList() {
   const centers = parseCentrosList(state.me?.centros);
