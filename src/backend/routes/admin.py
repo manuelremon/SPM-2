@@ -9,6 +9,7 @@ from ..config import Settings
 from ..db import get_connection
 from ..security import verify_access_token, hash_password
 from ..routes.solicitudes import STATUS_PENDING, STATUS_CANCEL_PENDING, STATUS_CANCEL_REJECTED
+from ..health import get_system_status
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 COOKIE_NAME = "spm_token"
@@ -138,6 +139,16 @@ def _row_to_user(row: Dict[str, Any]) -> Dict[str, Any]:
             if value
         ],
     }
+
+
+@bp.get("/system-status")
+def obtener_estado_sistema():
+    with get_connection() as con:
+        _, auth_error = _require_admin(con)
+        if auth_error:
+            if not Settings.DEBUG:
+                return auth_error["body"], auth_error["status"]
+    return get_system_status()
 
 
 def _catalog_meta(resource: str) -> Optional[Dict[str, Any]]:

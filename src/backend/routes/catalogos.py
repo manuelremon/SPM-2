@@ -1,11 +1,12 @@
 from __future__ import annotations
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from typing import Any, Dict
 from ..db import get_connection
 from ..security import verify_access_token
 from .admin import CATALOG_RESOURCES
 
 bp = Blueprint("catalogos", __name__, url_prefix="/api/catalogos")
+almacenes_bp = Blueprint("almacenes", __name__, url_prefix="/api/almacenes")
 COOKIE_NAME = "spm_token"
 
 
@@ -74,4 +75,26 @@ def obtener_catalogo(resource: str):
         if items is None:
             return {"ok": False, "error": {"code": "UNKNOWN", "message": "Recurso desconocido"}}, 404
     return {"ok": True, "items": items}
+
+
+@almacenes_bp.get("")
+def obtener_almacenes():
+    uid = _require_auth()
+    if not uid:
+        return {"ok": False, "error": {"code": "NOAUTH", "message": "No autenticado"}}, 401
+    centro = (request.args.get("centro") or "").strip() or None
+    params = (centro, centro)
+    with get_connection() as con:
+        rows = con.execute(
+            """
+            SELECT id_almacen, id_centro, nombre
+            FROM almacenes
+            WHERE activo = 1
+              AND (? IS NULL OR id_centro = ?)
+            ORDER BY nombre
+            """,
+            params,
+        ).fetchall()
+    current_app.logger.debug("Almacenes activos devueltos: %d (centro=%s)", len(rows), centro or "todos")
+    return rows
 

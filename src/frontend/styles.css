@@ -1049,6 +1049,13 @@ body[data-theme="light"] .notification-content {
 .account-field__tag--admin{background:rgba(251,191,36,.16);color:#facc15;border:1px solid rgba(250,204,21,.3);}
 .account-field__tag--self{background:rgba(34,197,94,.14);color:#22c55e;border:1px solid rgba(34,197,94,.32);}
 .account-field__value{display:flex;align-items:center;justify-content:space-between;gap:.8rem;font-size:.95rem;color:#e2e8f0;}
+.account-field__input{flex:1;min-width:0;background:transparent;border:0;color:inherit;font:inherit;padding:.15rem 0;outline:none;transition:border-color var(--transition-fast),color var(--transition-fast);}
+.account-field__input::placeholder{color:rgba(148,163,184,.5);}
+.account-field__input:focus{border-bottom:1px solid rgba(56,189,248,.55);}
+.account-field__input:disabled{cursor:default;opacity:.75;}
+.account-field.is-editing .account-field__input{border-bottom:1px solid rgba(56,189,248,.7);}
+.account-field.is-editing .account-field__value{gap:1.1rem;}
+
 .account-field__empty{color:rgba(148,163,184,.6);font-style:italic;}
 .account-field__edit{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border-radius:50%;border:1px solid rgba(56,189,248,.45);background:rgba(8,21,42,.85);color:#bae6fd;cursor:pointer;transition:transform var(--transition-fast),border-color var(--transition-fast),background var(--transition-fast);}
 .account-field__edit svg{width:1rem;height:1rem;fill:currentColor;}
@@ -1062,12 +1069,24 @@ body[data-theme="light"] .notification-content {
 .account-card__actions{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:flex-end;position:relative;z-index:1;}
 .account-card__actions .btn.ghost{border:1px solid rgba(56,189,248,.35);background:rgba(14,116,233,.08);color:#e0f2fe;}
 .account-card__actions .btn.ghost:hover{background:rgba(14,116,233,.16);}
+.account-password-modal{max-width:420px;width:100%;padding:2rem;display:flex;flex-direction:column;gap:1.4rem;}
+.account-password__header{display:flex;flex-direction:column;gap:.4rem;}
+.account-password__header h3{margin:0;font-size:1.3rem;}
+.account-password__header p{margin:0;font-size:.9rem;color:rgba(148,163,184,.85);}
+.account-password__form{display:flex;flex-direction:column;gap:1rem;}
+.account-password__label{display:flex;flex-direction:column;gap:.45rem;font-size:.9rem;color:rgba(191,219,254,.9);}
+.account-password__label input{padding:.6rem .75rem;border-radius:.6rem;border:1px solid rgba(56,189,248,.35);background:rgba(15,23,42,.92);color:#f8fafc;transition:border-color var(--transition-fast),box-shadow var(--transition-fast);}
+.account-password__label input:focus{outline:none;border-color:rgba(56,189,248,.75);box-shadow:0 0 0 2px rgba(56,189,248,.15);}
+.account-password__actions{display:flex;justify-content:flex-end;gap:.75rem;}
+
 
 body[data-theme="light"] .account-card{background:linear-gradient(135deg,rgba(248,250,252,.98),rgba(241,245,249,.96));border:1px solid rgba(148,163,184,.25);box-shadow:0 32px 60px rgba(148,163,184,.25);}
 body[data-theme="light"] .account-card::after{background:radial-gradient(circle at top right,rgba(34,197,94,.15),transparent 60%);}
 body[data-theme="light"] .account-field{background:rgba(255,255,255,.95);border:1px solid rgba(148,163,184,.25);box-shadow:0 18px 36px rgba(148,163,184,.25);}
 body[data-theme="light"] .account-field__label{color:#0f172a;}
 body[data-theme="light"] .account-field__value{color:#1f2937;}
+body[data-theme="light"] .account-field__input{background:transparent;color:#1f2937;border-color:rgba(148,163,184,.35);}
+
 body[data-theme="light"] .account-field__tag--admin{background:rgba(251,191,36,.18);color:#92400e;border-color:rgba(217,119,6,.35);}
 body[data-theme="light"] .account-field__tag--self{background:rgba(34,197,94,.16);color:#166534;border-color:rgba(22,163,74,.35);}
 body[data-theme="light"] .account-field__edit{background:#eff6ff;color:#1d4ed8;border-color:rgba(59,130,246,.35);}
@@ -1075,6 +1094,9 @@ body[data-theme="light"] .account-field__edit:hover{background:#dbeafe;border-co
 body[data-theme="light"] .account-field__edit:active{background:#bfdbfe;border-color:rgba(37,99,235,.8);color:#1e3a8a;}
 body[data-theme="light"] .account-centers__chip{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.3);color:#1e3a8a;}
 body[data-theme="light"] .account-field__plus{border-color:rgba(59,130,246,.35);background:rgba(191,219,254,.6);color:#1e3a8a;}
+body[data-theme="light"] .account-password__label{color:#0f172a;}
+body[data-theme="light"] .account-password__label input{background:#fff;color:#0f172a;border-color:rgba(148,163,184,.4);}
+
 
 /* Page-specific adjustments */
 body.page-mi-cuenta .content {
@@ -1147,3 +1169,4 @@ body.page-mi-cuenta .content {
     font-size: 0.75rem;
   }
 }
+

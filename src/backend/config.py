@@ -34,6 +34,12 @@ class Settings:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB máximo por archivo
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'csv'}
 
+    STATUS_TIMEOUT_MS = int(os.getenv("STATUS_TIMEOUT_MS", "2000"))
+    STATUS_CACHE_SECS = int(os.getenv("STATUS_CACHE_SECS", "30"))
+    STATUS_CHECK_GITHUB = os.getenv("STATUS_CHECK_GITHUB", "1").strip().lower() not in {"0", "false", "no"}
+    STATUS_CHECK_RENDER = os.getenv("STATUS_CHECK_RENDER", "1").strip().lower() not in {"0", "false", "no"}
+    STATUS_CHECK_OLLAMA = os.getenv("STATUS_CHECK_OLLAMA", "1").strip().lower() not in {"0", "false", "no"}
+
     @classmethod
     def ensure_dirs(cls) -> None:
         os.makedirs(os.path.dirname(cls.DB_PATH), exist_ok=True)

@@ -1,4 +1,5 @@
-﻿// para evitar problemas de CSP/CORS cuando se sirve tras Nginx.
+// para evitar problemas de CSP/CORS cuando se sirve tras Nginx.
+console.debug("[SPM] app.js loaded");
 window.addEventListener('error', (e) => {
   const box = document.createElement('div');
   Object.assign(box.style, {
@@ -8,7 +9,7 @@ window.addEventListener('error', (e) => {
   box.textContent = 'JS error: ' + (e?.error?.stack || e.message || e.toString());
   document.body.appendChild(box);
 });
-// Asegura que el contenido sea visible al cargar la página
+// Asegura que el contenido sea visible al cargar la p�gina
 window.addEventListener('DOMContentLoaded', () => {
   document.body.classList.add('is-ready');
 });
@@ -60,12 +61,29 @@ async function api(path, opts = {}) {
   };
   const res = await fetch(`${API}${path}`, config);
   if (!res.ok) {
-    let err = "Error de red";
+    let message = "Error de red";
+    let payload;
     try {
-      const json = await res.json();
-      err = json.error?.message || err;
+      payload = await res.json();
+      if (payload?.error?.message) {
+        message = payload.error.message;
+      } else if (typeof payload?.error === "string") {
+        if (payload.error === "invalid_credentials") {
+          message = "Usuario o contrase�a inv�lidos";
+        } else {
+          message = payload.error;
+        }
+      }
     } catch (_ignored) {}
-    throw new Error(err);
+    const error = new Error(message);
+    error.status = res.status;
+    error.details = payload;
+    if (payload?.error?.code) {
+      error.code = payload.error.code;
+    } else if (typeof payload?.error === "string") {
+      error.code = payload.error;
+    }
+    throw error;
   }
   const isJson = res.headers
     .get("content-type")
@@ -99,21 +117,21 @@ function escapeHtml(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const normalised = typeof value === "string" ? value.replace("T", " ") : value;
   const date = new Date(normalised);
   if (Number.isNaN(date.getTime())) {
-    return typeof value === "string" ? value : "â€”";
+    return typeof value === "string" ? value : "—";
   }
   return date.toLocaleString();
 }
 
 function formatDateOnly(value) {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const normalised = typeof value === "string" ? value.replace("T", " ") : value;
   const date = new Date(normalised);
   if (Number.isNaN(date.getTime())) {
-    return typeof value === "string" ? value : "â€”";
+    return typeof value === "string" ? value : "—";
   }
   return date.toLocaleDateString();
 }
@@ -940,114 +958,170 @@ function initHomeHero(userName) {
   window.setTimeout(tick, initialDelay);
 }
 
-function buildSystemStatusSnapshot() {
-  const now = new Date();
-  const pendingNotifications = Array.isArray(state.notifications?.pending)
-    ? state.notifications.pending.length
-    : 0;
-  const unreadNotifications = Number(state.notifications?.unread || 0);
-  const issuesTotal = pendingNotifications + unreadNotifications;
-  const lastLoginRaw = state.me?.ultimo_ingreso || state.me?.last_login;
-  const lastLogin = lastLoginRaw ? formatDateTime(lastLoginRaw) : "No disponible";
-  const environmentLabel = window.APP_VERSION ? `Build ${window.APP_VERSION}` : "Build local de desarrollo";
+const SYSTEM_STATUS_REFRESH_MS = 60000;
+const SYSTEM_STATUS_MAX_BACKOFF_MS = 300000;
+const systemStatusState = {
+  timerId: null,
+  retry: 0,
+  openDetails: new Set(),
+};
 
-  return [
-    {
-      key: "overall",
-      label: "Estado general del sistema",
-      value: "Operativo",
-      tone: "ok",
-      detail: "Todos los componentes monitoreados responden dentro de los parámetros esperados.",
-    },
-    {
-      key: "issues",
-      label: "Problemas detectados",
-      value: issuesTotal ? `${issuesTotal} pendiente(s)` : "Sin incidentes",
-      tone: issuesTotal ? "warn" : "ok",
-      detail: issuesTotal
-        ? "Revisa las notificaciones sin leer para más detalles."
-        : `Última verificación ${now.toLocaleTimeString()}.`,
-    },
-    {
-      key: "backend",
-      label: "Estado Backend",
-      value: "API en línea",
-      tone: "ok",
-      detail: `Última respuesta confirmada ${now.toLocaleTimeString()}.`,
-    },
-    {
-      key: "frontend",
-      label: "Estado Frontend",
-      value: environmentLabel,
-      tone: "info",
-      detail: "Interfaz cargada correctamente en este navegador.",
-    },
-    {
-      key: "github",
-      label: "Estado Repositorio Github",
-      value: "Monitoreo manual",
-      tone: "info",
-      detail: "Sincroniza commits y pull requests antes del despliegue.",
-    },
-    {
-      key: "render",
-      label: "Estado Servicio Render.com",
-      value: "Sin verificación automática",
-      tone: "info",
-      detail: "Confirma el estado desde el panel de Render cuando haya un despliegue.",
-    },
-    {
-      key: "database",
-      label: "Estado Base de Datos",
-      value: "Conectada",
-      tone: "ok",
-      detail: "Sesión activa y consultas disponibles para este usuario.",
-    },
-    {
-      key: "uptime",
-      label: "Uptime sesión",
-      value: "En ejecución",
-      tone: "info",
-      detail: `Inicio de sesión: ${lastLogin}`,
-    },
-  ];
+function normalizeHealthStatus(value) {
+  const normalized = (value || "N/A").toString().toUpperCase();
+  if (normalized === "WARNING") return "WARN";
+  if (["OK", "WARN", "ERROR", "N/A"].includes(normalized)) {
+    return normalized;
+  }
+  return "N/A";
+}
+
+function systemStatusClass(value) {
+  switch (normalizeHealthStatus(value)) {
+    case "OK":
+      return "ok";
+    case "WARN":
+      return "warn";
+    case "ERROR":
+      return "error";
+    default:
+      return "idle";
+  }
+}
+
+function formatStatusDetails(details) {
+  if (details == null) {
+    return "{}";
+  }
+  if (typeof details === "string") {
+    return details;
+  }
+  try {
+    return JSON.stringify(details, null, 2);
+  } catch (error) {
+    return _shortErrorMessage(error);
+  }
+}
+
+function formatSystemTimestamp(value) {
+  if (!value) {
+    return "--";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
+}
+
+function renderSystemStatus(data, nodes) {
+  const { listNode, summaryNode, messageNode, timestampNode } = nodes;
+  if (!data || !Array.isArray(data.items)) {
+    listNode.innerHTML = '<p class="system-status__empty">Sin datos disponibles.</p>';
+    summaryNode.innerHTML = "";
+    timestampNode.textContent = "Actualizado: --";
+    return;
+  }
+
+  const idsPresent = new Set();
+  const cards = data.items
+    .map((item, index) => {
+      const id = item.id || `item-${index}`;
+      idsPresent.add(id);
+      const status = normalizeHealthStatus(item.status);
+      const statusClass = systemStatusClass(status);
+      const latency = Number.isFinite(Number(item.latency_ms)) ? `${Math.round(Number(item.latency_ms))} ms` : null;
+      const open = systemStatusState.openDetails.has(id);
+      const details = formatStatusDetails(item.details);
+      const metaParts = [];
+      if (latency) {
+        metaParts.push(`Latencia: ${latency}`);
+      }
+      if (item.details && typeof item.details.message === "string") {
+        metaParts.push(item.details.message);
+      }
+      const metaText = metaParts.length ? `<span>${escapeHtml(metaParts.join(" | "))}</span>` : "";
+
+      return `
+        <article class="system-status__card system-status__card--${statusClass}${open ? " is-open" : ""}" data-id="${escapeHtml(id)}">
+          <header class="system-status__card-header">
+            <span class="system-status__name">${escapeHtml(item.name || id)}</span>
+            <span class="system-status__badge system-status__badge--${statusClass}">${escapeHtml(status)}</span>
+          </header>
+          <div class="system-status__meta">
+            ${metaText}
+          </div>
+          <button type="button" class="system-status__toggle" aria-expanded="${open ? "true" : "false"}">
+            ${open ? "Ocultar detalles" : "Ver detalles"}
+          </button>
+          <pre class="system-status__details"${open ? "" : " hidden"}>${escapeHtml(details)}</pre>
+        </article>
+      `;
+    })
+    .join("");
+
+  listNode.innerHTML = cards || '<p class="system-status__empty">Sin datos disponibles.</p>';
+
+  for (const id of Array.from(systemStatusState.openDetails)) {
+    if (!idsPresent.has(id)) {
+      systemStatusState.openDetails.delete(id);
+    }
+  }
+
+  const summaryStatus = normalizeHealthStatus(data.summary);
+  const summaryClass = systemStatusClass(summaryStatus);
+  const counters = { OK: 0, WARN: 0, ERROR: 0, "N/A": 0 };
+  data.items.forEach((item) => {
+    const status = normalizeHealthStatus(item.status);
+    counters[status] = (counters[status] || 0) + 1;
+  });
+  const breakdown = Object.entries(counters)
+    .filter(([, value]) => value > 0)
+    .map(([label, value]) => `${label}: ${value}`)
+    .join(" | ") || "Sin datos";
+
+  summaryNode.innerHTML = `
+    <div class="system-status__summary system-status__summary--${summaryClass}">
+      <span class="system-status__summary-label">Resumen</span>
+      <span class="system-status__summary-status">${escapeHtml(summaryStatus)}</span>
+      <span class="system-status__summary-meta">${escapeHtml(breakdown)}</span>
+    </div>
+  `;
+
+  messageNode.classList.add("hide");
+  messageNode.textContent = "";
+  messageNode.removeAttribute("data-tone");
+  timestampNode.textContent = `Actualizado: ${formatSystemTimestamp(data.generated_at)}`;
 }
 
 function initSystemConsole() {
   const consoleNode = document.getElementById("systemConsole");
   const listNode = document.getElementById("systemConsoleList");
+  const summaryNode = document.getElementById("systemConsoleSummary");
+  const messageNode = document.getElementById("systemConsoleMessage");
   const timestampNode = document.getElementById("systemConsoleTimestamp");
   const toggleButton = document.getElementById("systemConsoleToggle");
 
-  if (!consoleNode || !listNode || !timestampNode || !toggleButton) {
+  if (!consoleNode || !listNode || !summaryNode || !messageNode || !timestampNode || !toggleButton) {
     return;
   }
 
-  const render = () => {
-    const snapshot = buildSystemStatusSnapshot();
-    const lines = snapshot
-      .map((item) => {
-        const tone = item.tone || "info";
-        const detail = item.detail ? `<span class="system-console__detail">${escapeHtml(item.detail)}</span>` : "";
-        return `
-          <li class="system-console__item" data-key="${escapeHtml(item.key || "")}">
-            <span class="system-console__label">${escapeHtml(item.label || "")}</span>
-            <span class="system-console__value system-console__value--${tone}">${escapeHtml(item.value || "")}</span>
-            ${detail}
-          </li>
-        `;
-      })
-      .join("");
-    listNode.innerHTML = lines;
-    timestampNode.textContent = `Actualizado: ${new Date().toLocaleString()}`;
-  };
+  const isAdmin =
+    typeof state.me?.rol === "string" &&
+    (state.me.rol.toLowerCase().includes("admin") || state.me.rol.toLowerCase().includes("administrador"));
 
-  if (consoleNode.dataset.intervalId) {
-    window.clearInterval(Number(consoleNode.dataset.intervalId));
-    delete consoleNode.dataset.intervalId;
+  if (!isAdmin) {
+    consoleNode.classList.add("hide");
+    if (systemStatusState.timerId) {
+      window.clearTimeout(systemStatusState.timerId);
+      systemStatusState.timerId = null;
+    }
+    return;
   }
 
-  if (consoleNode.dataset.ready !== "1") {
+  consoleNode.classList.remove("hide");
+  systemStatusState.openDetails.clear();
+
+  if (!consoleNode.dataset.ready) {
     toggleButton.addEventListener("click", () => {
       const minimized = consoleNode.classList.toggle("is-minimized");
       toggleButton.setAttribute("aria-expanded", minimized ? "false" : "true");
@@ -1057,28 +1131,93 @@ function initSystemConsole() {
         minimized ? "Restaurar consola Estado del Sistema" : "Minimizar consola Estado del Sistema"
       );
     });
+
+    listNode.addEventListener("click", (event) => {
+      const button = event.target.closest(".system-status__toggle");
+      if (!button) {
+        return;
+      }
+      const card = button.closest(".system-status__card");
+      if (!card) {
+        return;
+      }
+      const details = card.querySelector(".system-status__details");
+      if (!details) {
+        return;
+      }
+      const identifier = card.dataset.id;
+      const isOpen = !details.hasAttribute("hidden");
+      if (isOpen) {
+        details.setAttribute("hidden", "hidden");
+        button.setAttribute("aria-expanded", "false");
+        button.textContent = "Ver detalles";
+        card.classList.remove("is-open");
+        if (identifier) {
+          systemStatusState.openDetails.delete(identifier);
+        }
+      } else {
+        details.removeAttribute("hidden");
+        button.setAttribute("aria-expanded", "true");
+        button.textContent = "Ocultar detalles";
+        card.classList.add("is-open");
+        if (identifier) {
+          systemStatusState.openDetails.add(identifier);
+        }
+      }
+    });
+
     consoleNode.dataset.ready = "1";
   }
 
-  render();
-  const intervalId = window.setInterval(render, 60000);
-  consoleNode.dataset.intervalId = String(intervalId);
-  // Solo mostrar la consola si el usuario es admin
-  if (typeof state.me?.rol === "string" && (state.me.rol.toLowerCase().includes("admin") || state.me.rol.toLowerCase().includes("administrador"))) {
-    consoleNode.classList.remove("hide");
+  if (systemStatusState.timerId) {
+    window.clearTimeout(systemStatusState.timerId);
+    systemStatusState.timerId = null;
   }
-}
+  systemStatusState.retry = 0;
 
-const STATUS_LABELS = {
+  const scheduleNext = (delay) => {
+    if (systemStatusState.timerId) {
+      window.clearTimeout(systemStatusState.timerId);
+    }
+    systemStatusState.timerId = window.setTimeout(loadStatus, delay);
+    consoleNode.dataset.intervalId = String(systemStatusState.timerId);
+  };
+
+  async function loadStatus() {
+    try {
+      const response = await fetch("/api/admin/system-status", { credentials: "include" });
+      if (!response.ok) {
+        throw new Error(`Error ${response.status} al obtener el estado del sistema`);
+      }
+      const payload = await response.json();
+      systemStatusState.retry = 0;
+      renderSystemStatus(payload, { listNode, summaryNode, messageNode, timestampNode });
+      scheduleNext(SYSTEM_STATUS_REFRESH_MS);
+    } catch (error) {
+      systemStatusState.retry = Math.min(systemStatusState.retry + 1, 5);
+      const delay = Math.min(
+        SYSTEM_STATUS_REFRESH_MS * Math.pow(2, systemStatusState.retry),
+        SYSTEM_STATUS_MAX_BACKOFF_MS
+      );
+      messageNode.textContent = error?.message || "No se pudo actualizar el estado del sistema.";
+      messageNode.classList.remove("hide");
+      messageNode.dataset.tone = "error";
+      timestampNode.textContent = "Actualizado: --";
+      scheduleNext(delay);
+    }
+  }
+
+  loadStatus();
+}const STATUS_LABELS = {
   draft: "Borrador",
   finalizada: "Finalizada",
   cancelada: "Cancelada",
-  pendiente_de_aprobacion: "pendiente de aprobación",
+  pendiente_de_aprobacion: "pendiente de aprobaci�n",
   pendiente: "pendiente",
   aprobada: "Aprobada",
   rechazada: "Rechazada",
-  cancelacion_pendiente: "Cancelación pendiente",
-  cancelacion_rechazada: "Cancelación rechazada",
+  cancelacion_pendiente: "Cancelaci�n pendiente",
+  cancelacion_rechazada: "Cancelaci�n rechazada",
 };
 
 const PENDING_SOLICITUD_KEY = "pendingSolicitudId";
@@ -1316,7 +1455,7 @@ function clearAllStoredFilters() {
 
 function statusBadge(status) {
   const normalized = (status || "").toLowerCase();
-  const fallback = normalized ? normalized.replace(/_/g, " ") : "â€”";
+  const fallback = normalized ? normalized.replace(/_/g, " ") : "—";
   const label = STATUS_LABELS[normalized] || fallback;
   const pretty = STATUS_LABELS[normalized]
     ? label
@@ -1345,8 +1484,8 @@ const ADMIN_CONFIG_TABLE_FIELDS = {
 };
 
 const ADMIN_CONFIG_LABELS = {
-  centros: "centro logístico",
-  almacenes: "almacén virtual",
+  centros: "centro log�stico",
+  almacenes: "almac�n virtual",
   roles: "rol",
   puestos: "puesto",
   sectores: "sector",
@@ -1417,31 +1556,31 @@ async function loadCatalogData(resource = null, { silent = false, includeInactiv
       const endpoint = params.size ? `/catalogos/${resource}?${params.toString()}` : `/catalogos/${resource}`;
       const resp = await api(endpoint);
       if (!resp?.ok) {
-        throw new Error(resp?.error?.message || "No se pudo cargar el catálogo");
+        throw new Error(resp?.error?.message || "No se pudo cargar el cat�logo");
       }
       setCatalogItems(resource, resp.items || []);
       if (!silent) {
-        toast(`Catálogo de ${adminConfigLabel(resource)} actualizado`, true);
+        toast(`Cat�logo de ${adminConfigLabel(resource)} actualizado`, true);
       }
       return resp.items || [];
     }
     const endpoint = params.size ? `/catalogos?${params.toString()}` : "/catalogos";
     const resp = await api(endpoint);
     if (!resp?.ok) {
-      throw new Error(resp?.error?.message || "No se pudo cargar la configuración");
+      throw new Error(resp?.error?.message || "No se pudo cargar la configuraci�n");
     }
     const normalized = ensureCatalogDefaults(resp.data || {});
     CATALOG_KEYS.forEach((key) => {
       setCatalogItems(key, normalized[key]);
     });
     if (!silent) {
-      toast("Catálogos sincronizados", true);
+      toast("Cat�logos sincronizados", true);
     }
     return normalized;
   } catch (err) {
     console.error(err);
     if (!silent) {
-      toast(err.message || "No se pudieron cargar los catálogos");
+      toast(err.message || "No se pudieron cargar los cat�logos");
     }
     return null;
   }
@@ -1527,20 +1666,61 @@ function populateCentroSelect() {
   const select = document.getElementById("centro");
   if (!select) return;
   const options = buildCentroOptions();
-  renderSelectOptions(select, options, { placeholder: "Seleccioná un centro" });
+  renderSelectOptions(select, options, { placeholder: "Seleccion� un centro" });
 }
 
-function populateAlmacenSelect() {
-  const select = document.getElementById("almacenVirtual");
-  if (!select) return;
-  const options = buildAlmacenOptions();
-  renderSelectOptions(select, options, { placeholder: "Seleccioná un almacén" });
+async function cargarAlmacenes(centro) {
+  const url = centro ? `/api/almacenes?centro=${encodeURIComponent(centro)}` : "/api/almacenes";
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    console.error("Error cargando almacenes", error);
+    return;
+  }
+  if (!response.ok) {
+    console.error("Error cargando almacenes", response.status);
+    return;
+  }
+  const payload = await response.json();
+  const data = Array.isArray(payload) ? payload : payload?.items || [];
+  const sel = document.getElementById("almacen");
+  if (!sel) {
+    return;
+  }
+  sel.innerHTML = '<option value="">Seleccion� un almac�n</option>';
+  data.forEach((a) => {
+    if (!a) {
+      return;
+    }
+    const id = `${a.id_almacen ?? ""}`.trim();
+    if (!id) {
+      return;
+    }
+    const nombre = `${a.nombre ?? ""}`.trim();
+    const label = nombre ? `${id} - ${nombre}` : id;
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  });
 }
-
 async function initCreateSolicitudPage() {
   await loadCatalogData();
   populateCentroSelect();
-  populateAlmacenSelect();
+
+  const centroEl = document.getElementById("centro");
+  const almacenEl = document.getElementById("almacen");
+  if (almacenEl) {
+    almacenEl.innerHTML = '<option value="">Seleccion� un almac�n</option>';
+  }
+  const initialCentro = centroEl?.value?.trim();
+  await cargarAlmacenes(initialCentro);
+
+  centroEl?.addEventListener("change", (event) => {
+    const value = event.target?.value?.trim();
+    cargarAlmacenes(value);
+  });
 
   // Event listener for "Continuar" button
   const btnContinuar = document.getElementById("btnContinuar");
@@ -1548,7 +1728,7 @@ async function initCreateSolicitudPage() {
     btnContinuar.addEventListener("click", () => {
       // Collect form data
       const centro = document.getElementById("centro")?.value;
-      const almacenVirtual = document.getElementById("almacenVirtual")?.value;
+      const almacen = document.getElementById("almacen")?.value;
       const centroDeCostos = document.getElementById("centroDeCostos")?.value;
       const criticidad = document.getElementById("criticidad")?.value;
       const fechaNecesidad = document.getElementById("fechaNecesidad")?.value;
@@ -1556,15 +1736,15 @@ async function initCreateSolicitudPage() {
       const just = document.getElementById("just")?.value;
 
       // Basic validation
-      if (!centro || !almacenVirtual || !just.trim()) {
-        toast("Completá los campos obligatorios: Centro, Almacén y Justificación");
+      if (!centro || !almacen || !just.trim()) {
+        toast("Complet� los campos obligatorios: Centro, Almac�n y Justificaci�n");
         return;
       }
 
       // Save to draft
       updateDraftHeader({
         centro,
-        almacen_virtual: almacenVirtual,
+        almacen_virtual: almacen,
         centro_costos: centroDeCostos,
         criticidad,
         fecha_necesidad: fechaNecesidad,
@@ -1577,7 +1757,6 @@ async function initCreateSolicitudPage() {
     });
   }
 }
-
 async function initAddMaterialsPage() {
   // Load draft
   const draft = getDraft();
@@ -1630,7 +1809,7 @@ async function initAddMaterialsPage() {
   }
 }
 
-function renderSelectOptions(select, options, { placeholder = "Seleccioná una opción", value = "" } = {}) {
+function renderSelectOptions(select, options, { placeholder = "Seleccion� una opci�n", value = "" } = {}) {
   if (!select) {
     return;
   }
@@ -1696,7 +1875,7 @@ function renderCart(items) {
     tr.innerHTML = `
       <td>${item.codigo}</td>
       <td>${item.descripcion || ""}</td>
-      <td>${item.unidad || "â€”"}</td>
+      <td>${item.unidad || "—"}</td>
       <td>${formatCurrency(precio)}</td>
       <td><input type="number" min="1" value="${cantidad}" data-index="${index}" class="qty-input"></td>
       <td>${formatCurrency(subtotal)}</td>
@@ -1850,7 +2029,7 @@ async function loadNotificationsSummary(options = {}) {
     if (state.notifications.unread > 0 && !options.markAsRead) {
       const latestUnread = state.notifications.items.find(item => !item.leido);
       if (latestUnread) {
-        showNotificationPopup(`Tienes ${state.notifications.unread} notificación(es) pendiente(s)`);
+        showNotificationPopup(`Tienes ${state.notifications.unread} notificaci�n(es) pendiente(s)`);
       }
     }
 
@@ -1933,7 +2112,7 @@ async function decideSolicitudDecision(id, action, triggerBtn) {
 
   let comentario = null;
   if (action === "aprobar") {
-    const confirmed = window.confirm(`¿Confirmás aprobar la solicitud #${numericId}?`);
+    const confirmed = window.confirm(`�Confirm�s aprobar la solicitud #${numericId}?`);
     if (!confirmed) {
       return;
     }
@@ -1943,7 +2122,7 @@ async function decideSolicitudDecision(id, action, triggerBtn) {
       return;
     }
     comentario = reason.trim() || null;
-    const confirmed = window.confirm(`¿Confirmás rechazar la solicitud #${numericId}?`);
+    const confirmed = window.confirm(`�Confirm�s rechazar la solicitud #${numericId}?`);
     if (!confirmed) {
       return;
     }
@@ -1965,10 +2144,10 @@ async function decideSolicitudDecision(id, action, triggerBtn) {
       body: JSON.stringify(body),
     });
     if (!resp?.ok) {
-      throw new Error(resp?.error?.message || "No se pudo registrar la decisión");
+      throw new Error(resp?.error?.message || "No se pudo registrar la decisi�n");
     }
     const status = (resp.status || "").toLowerCase();
-    let okMsg = "Decisión registrada";
+    let okMsg = "Decisi�n registrada";
     if (status === "aprobada") {
       okMsg = "Solicitud aprobada";
     } else if (status === "rechazada") {
@@ -1983,7 +2162,7 @@ async function decideSolicitudDecision(id, action, triggerBtn) {
       await openSolicitudDetail(numericId);
     }
   } catch (err) {
-    toast(err.message || "No se pudo registrar la decisión");
+    toast(err.message || "No se pudo registrar la decisi�n");
   } finally {
     if (triggerBtn) {
       triggerBtn.disabled = false;
@@ -2002,7 +2181,7 @@ async function decideCentroRequest(id, action, triggerBtn) {
 
   let comentario = null;
   if (action === "aprobar") {
-    const confirmed = window.confirm(`¿Confirmás aprobar la solicitud de centros #${numericId}?`);
+    const confirmed = window.confirm(`�Confirm�s aprobar la solicitud de centros #${numericId}?`);
     if (!confirmed) {
       return;
     }
@@ -2015,7 +2194,7 @@ async function decideCentroRequest(id, action, triggerBtn) {
       return;
     }
     comentario = reason.trim() || null;
-    const confirmed = window.confirm(`¿Confirmás rechazar la solicitud de centros #${numericId}?`);
+    const confirmed = window.confirm(`�Confirm�s rechazar la solicitud de centros #${numericId}?`);
     if (!confirmed) {
       return;
     }
@@ -2038,10 +2217,10 @@ async function decideCentroRequest(id, action, triggerBtn) {
       body: JSON.stringify(body),
     });
     if (!resp?.ok) {
-      throw new Error(resp?.error?.message || "No se pudo registrar la decisión");
+      throw new Error(resp?.error?.message || "No se pudo registrar la decisi�n");
     }
     const estado = (resp.estado || "").toLowerCase();
-    let okMsg = "Decisión registrada";
+    let okMsg = "Decisi�n registrada";
     if (estado === "aprobado") {
       okMsg = "Solicitud de centros aprobada";
     } else if (estado === "rechazado") {
@@ -2051,7 +2230,7 @@ async function decideCentroRequest(id, action, triggerBtn) {
     const updated = await loadNotificationsSummary();
     renderNotificationsPage(updated);
   } catch (err) {
-    toast(err.message || "No se pudo registrar la decisión");
+    toast(err.message || "No se pudo registrar la decisi�n");
   } finally {
     if (triggerBtn) {
       triggerBtn.disabled = false;
@@ -2117,7 +2296,7 @@ function renderNotificationsPage(data) {
         const header = document.createElement("div");
         header.className = "notification-item-header";
         const createdAt = formatDateTime(notif.created_at);
-        header.innerHTML = `<span>${escapeHtml(notif.mensaje || "Notificación")}</span><time>${createdAt}</time>`;
+        header.innerHTML = `<span>${escapeHtml(notif.mensaje || "Notificaci�n")}</span><time>${createdAt}</time>`;
         node.appendChild(header);
 
         if (notif.solicitud_id) {
@@ -2174,9 +2353,9 @@ function renderNotificationsPage(data) {
         const monto = Number(row.total_monto || 0);
         tr.innerHTML = `
           <td>#${row.id}</td>
-          <td>${escapeHtml(row.centro || "â€”")}</td>
-          <td>${escapeHtml(row.sector || "â€”")}</td>
-          <td>${escapeHtml(row.justificacion || "â€”")}</td>
+          <td>${escapeHtml(row.centro || "—")}</td>
+          <td>${escapeHtml(row.sector || "—")}</td>
+          <td>${escapeHtml(row.justificacion || "—")}</td>
           <td data-sort="${monto}">${formatCurrency(monto)}</td>
           <td data-sort="${row.created_at || ""}">${createdAt}</td>
           <td class="pending-actions">
@@ -2384,11 +2563,15 @@ async function login() {
   try {
     await api("/login", {
       method: "POST",
-      body: JSON.stringify({ id, password }),
+      body: JSON.stringify({ username: id, password }),
     });
     window.location.href = "home.html";
   } catch (err) {
-    toast(err.message);
+    if (err?.status === 401 || err?.code === "invalid_credentials") {
+      toast("Usuario o contrase�a inv�lidos");
+      return;
+    }
+    toast(err?.message || "Error al iniciar sesi�n");
   }
 }
 
@@ -2411,7 +2594,7 @@ async function submitRegister() {
   }
 
   if (password.length < 6) {
-    toast("La contraseña debe tener al menos 6 caracteres");
+    toast("La contrase�a debe tener al menos 6 caracteres");
     return;
   }
 
@@ -2420,7 +2603,7 @@ async function submitRegister() {
       method: "POST",
       body: JSON.stringify({ id, password, nombre, apellido, rol }),
     });
-    toast("Usuario registrado. Ahora puede iniciar sesión.", true);
+    toast("Usuario registrado. Ahora puede iniciar sesi�n.", true);
     closeRegisterModal();
   } catch (err) {
     toast(err.message);
@@ -2435,7 +2618,7 @@ function closeRegisterModal() {
 function recover() {
   const id = $("#id").value.trim();
   if (!id) {
-    toast("Ingrese su ID o email para recuperar la contraseña");
+    toast("Ingrese su ID o email para recuperar la contrase�a");
     return;
   }
   const mailto = `mailto:manuelremon@live.com.ar?subject=Recuperaci%C3%B3n%20de%20contrase%C3%B1a&body=Por%20favor%20asistir%20al%20usuario:%20${encodeURIComponent(id)}`;
@@ -2449,10 +2632,8 @@ function help() {
 
 async function me() {
   try {
-    const resp = await api("/me");
-    console.log("API /me response:", resp);
+    const resp = await api("/usuarios/me");
     state.me = resp.usuario;
-    console.log("state.me set to:", state.me);
     updateMenuVisibility();
     if (state.me) {
       state.me.centros = parseCentrosList(state.me.centros);
@@ -2497,7 +2678,7 @@ async function addItem() {
 
   if (!material) {
     if (!code && !desc) {
-      toast("Buscá un material por código o descripción");
+      toast("Busc� un material por c�digo o descripci�n");
       return;
     }
     try {
@@ -2510,7 +2691,7 @@ async function addItem() {
         return;
       }
       if (results.length > 1) {
-        toast("Seleccioná un material de la lista sugerida");
+        toast("Seleccion� un material de la lista sugerida");
         if (code) state.cache.set(`codigo:${code.toLowerCase()}`, results);
         if (desc) state.cache.set(`descripcion:${desc.toLowerCase()}`, results);
         showMaterialSuggestions(codeSuggest, results, codeSuggest, descSuggest);
@@ -2525,7 +2706,7 @@ async function addItem() {
   }
 
   if (!material) {
-    toast("Seleccioná un material válido");
+    toast("Seleccion� un material v�lido");
     return;
   }
 
@@ -2558,7 +2739,7 @@ async function recreateDraft(latestDraft, latestUserId) {
   const almacenVirtual =
   latestDraft.header.almacen_virtual || getDefaultAlmacenValue() || "";
   if (!almacenVirtual) {
-    toast("No se pudo determinar el almacén virtual del borrador");
+    toast("No se pudo determinar el almac�n virtual del borrador");
     return null;
   }
   const criticidad = latestDraft.header.criticidad || "Normal";
@@ -2596,7 +2777,7 @@ async function recreateDraft(latestDraft, latestUserId) {
     if (idDisplay) {
       idDisplay.textContent = `#${resp.id}`;
     }
-    toast("Se recreó la solicitud. Intentá nuevamente.", true);
+    toast("Se recre� la solicitud. Intent� nuevamente.", true);
     return resp.id;
   } catch (err) {
     toast(err.message);
@@ -2607,7 +2788,7 @@ async function recreateDraft(latestDraft, latestUserId) {
 async function saveDraft(isRetry = false) {
   const latestDraft = getDraft();
   if (!latestDraft || !latestDraft.header) {
-    toast("No se encontró el encabezado de la solicitud");
+    toast("No se encontr� el encabezado de la solicitud");
     return;
   }
   const latestUserId = currentUserId();
@@ -2618,7 +2799,7 @@ async function saveDraft(isRetry = false) {
   const almacenVirtual =
   latestDraft.header.almacen_virtual || getDefaultAlmacenValue() || "";
   if (!almacenVirtual) {
-    toast("Seleccioná un almacén virtual en el paso anterior");
+    toast("Seleccion� un almac�n virtual en el paso anterior");
     return;
   }
   const criticidad = latestDraft.header.criticidad || "Normal";
@@ -2678,11 +2859,11 @@ async function saveDraft(isRetry = false) {
 async function sendSolicitud() {
   const latestDraft = getDraft();
   if (!latestDraft || !latestDraft.header) {
-    toast("No se encontró el encabezado de la solicitud");
+    toast("No se encontr� el encabezado de la solicitud");
     return;
   }
   if (!state.items || !state.items.length) {
-    toast("Agregá al menos un material a la solicitud");
+    toast("Agreg� al menos un material a la solicitud");
     return;
   }
   const latestUserId = currentUserId();
@@ -2693,7 +2874,7 @@ async function sendSolicitud() {
   const almacenVirtual =
     latestDraft.header.almacen_virtual || getDefaultAlmacenValue() || "";
   if (!almacenVirtual) {
-    toast("Seleccioná un almacén virtual en el paso anterior");
+    toast("Seleccion� un almac�n virtual en el paso anterior");
     return;
   }
   const criticidad = latestDraft.header.criticidad || "Normal";
@@ -2758,14 +2939,14 @@ function renderSolicitudDetail(detail) {
 
   idEl.textContent = `#${detail.id}`;
   statusEl.innerHTML = statusBadge(detail.status);
-  centroEl.textContent = detail.centro || "â€”";
-  sectorEl.textContent = detail.sector || "â€”";
-  centroCostosEl.textContent = detail.centro_costos || "â€”";
+  centroEl.textContent = detail.centro || "—";
+  sectorEl.textContent = detail.sector || "—";
+  centroCostosEl.textContent = detail.centro_costos || "—";
   if (almacenEl) {
-    almacenEl.textContent = detail.almacen_virtual || "â€”";
+    almacenEl.textContent = detail.almacen_virtual || "—";
   }
   if (criticidadEl) {
-    criticidadEl.textContent = detail.criticidad || "â€”";
+    criticidadEl.textContent = detail.criticidad || "—";
   }
   if (fechaEl) {
     if (detail.fecha_necesidad) {
@@ -2774,18 +2955,18 @@ function renderSolicitudDetail(detail) {
         ? detail.fecha_necesidad
         : fecha.toLocaleDateString();
     } else {
-      fechaEl.textContent = "â€”";
+      fechaEl.textContent = "—";
     }
   }
-  justEl.textContent = detail.justificacion || "â€”";
-  createdEl.textContent = detail.created_at ? new Date(detail.created_at).toLocaleString() : "â€”";
-  updatedEl.textContent = detail.updated_at ? new Date(detail.updated_at).toLocaleString() : "â€”";
+  justEl.textContent = detail.justificacion || "—";
+  createdEl.textContent = detail.created_at ? new Date(detail.created_at).toLocaleString() : "—";
+  updatedEl.textContent = detail.updated_at ? new Date(detail.updated_at).toLocaleString() : "—";
   totalEl.textContent = formatCurrency(detail.total_monto || 0);
   if (aprobadorEl) {
-    aprobadorEl.textContent = detail.aprobador_nombre || "â€”";
+    aprobadorEl.textContent = detail.aprobador_nombre || "—";
   }
   if (planificadorEl) {
-    planificadorEl.textContent = detail.planner_nombre || "â€”";
+    planificadorEl.textContent = detail.planner_nombre || "—";
   }
 
   const cancelRequest = detail.cancel_request || null;
@@ -2793,25 +2974,25 @@ function renderSolicitudDetail(detail) {
   cancelInfo.textContent = "";
   if (detail.status === "cancelada") {
     const reason = detail.cancel_reason ? `Motivo: ${detail.cancel_reason}` : "Sin motivo indicado";
-    const when = detail.cancelled_at ? ` Â· ${formatDateTime(detail.cancelled_at)}` : "";
+    const when = detail.cancelled_at ? ` · ${formatDateTime(detail.cancelled_at)}` : "";
     cancelInfo.textContent = `${reason}${when}`;
     cancelInfo.classList.remove("hide");
   } else if (cancelRequest && cancelRequest.status === "pendiente") {
     const when = cancelRequest.requested_at ? formatDateTime(cancelRequest.requested_at) : "";
     const reason = cancelRequest.reason ? `Motivo: ${cancelRequest.reason}` : "Sin motivo indicado";
-    cancelInfo.textContent = `Cancelación solicitada${when ? ` el ${when}` : ""}. ${reason}. pendiente de planificador.`;
+    cancelInfo.textContent = `Cancelaci�n solicitada${when ? ` el ${when}` : ""}. ${reason}. pendiente de planificador.`;
     cancelInfo.classList.remove("hide");
   } else if (cancelRequest && cancelRequest.status === "rechazada") {
     const when = cancelRequest.decision_at ? formatDateTime(cancelRequest.decision_at) : "";
     const comment = cancelRequest.decision_comment ? ` Motivo del rechazo: ${cancelRequest.decision_comment}.` : "";
-    cancelInfo.textContent = `Se rechazó la cancelación${when ? ` el ${when}` : ""}.${comment}`;
+    cancelInfo.textContent = `Se rechaz� la cancelaci�n${when ? ` el ${when}` : ""}.${comment}`;
     cancelInfo.classList.remove("hide");
   }
 
   itemsTbody.innerHTML = "";
   if (!detail.items || !detail.items.length) {
     const emptyRow = document.createElement("tr");
-    emptyRow.innerHTML = '<td colspan="6" class="muted">Sin ítems registrados</td>';
+    emptyRow.innerHTML = '<td colspan="6" class="muted">Sin �tems registrados</td>';
     itemsTbody.appendChild(emptyRow);
   } else {
     detail.items.forEach((item) => {
@@ -2819,11 +3000,11 @@ function renderSolicitudDetail(detail) {
       const cantidad = Number(item.cantidad ?? 0);
       const cantidadFmt = Number.isFinite(cantidad)
         ? cantidad.toLocaleString("es-AR")
-        : item.cantidad || "â€”";
+        : item.cantidad || "—";
       tr.innerHTML = `
-        <td>${item.codigo || "â€”"}</td>
+        <td>${item.codigo || "—"}</td>
         <td>${item.descripcion || ""}</td>
-        <td>${item.unidad || "â€”"}</td>
+        <td>${item.unidad || "—"}</td>
         <td>${formatCurrency(item.precio_unitario)}</td>
         <td>${cantidadFmt}</td>
         <td>${formatCurrency(item.subtotal)}</td>
@@ -2841,13 +3022,13 @@ function renderSolicitudDetail(detail) {
       cancelBtn.textContent = "Solicitud cancelada";
     } else if (detail.status === "cancelacion_pendiente") {
       cancelBtn.disabled = true;
-      cancelBtn.textContent = "Cancelación pendiente";
+      cancelBtn.textContent = "Cancelaci�n pendiente";
     } else if (detail.status === "draft") {
       cancelBtn.disabled = true;
-      cancelBtn.textContent = "Envía la solicitud para cancelarla";
+      cancelBtn.textContent = "Env�a la solicitud para cancelarla";
     } else {
       cancelBtn.disabled = false;
-      cancelBtn.textContent = "Solicitar cancelación";
+      cancelBtn.textContent = "Solicitar cancelaci�n";
     }
   }
 
@@ -2891,7 +3072,7 @@ function closeSolicitudDetailModal() {
   const cancelBtn = $("#btnRequestCancel");
   if (cancelBtn) {
     cancelBtn.disabled = false;
-    cancelBtn.textContent = "Solicitar cancelación";
+    cancelBtn.textContent = "Solicitar cancelaci�n";
   }
   const editBtn = $("#btnEditDraft");
   if (editBtn) {
@@ -2908,10 +3089,10 @@ async function requestCancelSelectedSolicitud() {
   const detail = state.selectedSolicitud;
   if (!detail) return;
   if (detail.status === "cancelada") {
-    toast("La solicitud ya está cancelada");
+    toast("La solicitud ya est� cancelada");
     return;
   }
-  const reason = prompt("Motivo de cancelación (opcional):", detail.cancel_reason || "");
+  const reason = prompt("Motivo de cancelaci�n (opcional):", detail.cancel_reason || "");
   if (reason === null) {
     return;
   }
@@ -2923,7 +3104,7 @@ async function requestCancelSelectedSolicitud() {
       body: JSON.stringify({ reason }),
     });
     if (response?.status === "cancelacion_pendiente") {
-      toast("CancelaciÃ³n enviada. pendiente de aprobaciÃ³n del planificador.", true);
+      toast("Cancelación enviada. pendiente de aprobación del planificador.", true);
     } else {
       toast("Solicitud cancelada", true);
     }
@@ -2944,7 +3125,7 @@ async function requestCancelSelectedSolicitud() {
 function resumeDraftFromDetail() {
   const detail = state.selectedSolicitud;
   if (!detail || detail.status !== "draft") {
-    toast("Solo podÃ©s editar solicitudes en borrador");
+    toast("Solo podés editar solicitudes en borrador");
     return;
   }
   const userId = currentUserId();
@@ -2995,7 +3176,7 @@ function showMaterialSuggestions(container, items, codeSuggest, descSuggest) {
   items.forEach((material) => {
     const normalized = normalizeMaterial(material);
     const option = document.createElement("div");
-    option.textContent = `${normalized.codigo} Â· ${normalized.descripcion}`;
+    option.textContent = `${normalized.codigo} · ${normalized.descripcion}`;
     option.onclick = () => {
       if (codeInput) codeInput.value = normalized.codigo;
       if (descInput) descInput.value = normalized.descripcion;
@@ -3063,7 +3244,7 @@ function setupMaterialSearch() {
 function openMaterialDetailModal() {
   const material = state.selected;
   if (!material || !material.descripcion_larga?.trim()) {
-    toast("Seleccioná un material con detalle disponible");
+    toast("Seleccion� un material con detalle disponible");
     return;
   }
   const modal = $("#materialDetailModal");
@@ -3072,7 +3253,7 @@ function openMaterialDetailModal() {
   if (!modal || !title || !body) {
     return;
   }
-  title.textContent = `${material.codigo} Â· ${material.descripcion}`;
+  title.textContent = `${material.codigo} · ${material.descripcion}`;
   body.textContent = material.descripcion_larga;
   modal.classList.remove("hide");
 }
@@ -3083,41 +3264,6 @@ function closeMaterialDetailModal() {
   modal.classList.add("hide");
 }
 
-function accountSupportMail(subject, bodyLines) {
-  const to = "manuelremon@live.com.ar";
-  const body = encodeURIComponent((bodyLines || []).filter(Boolean).join("\n"));
-  const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${body}`;
-  window.location.href = mailto;
-}
-
-function requestPasswordChange() {
-  if (!state.me) {
-    toast("Inicia sesion para gestionar tu contrasena");
-    return;
-  }
-  const identifier = state.me.id || state.me.id_spm || "";
-  accountSupportMail("Solicitud de cambio de contrasena SPM", [
-    "Hola equipo SPM,",
-    "Quisiera gestionar un cambio de contrasena.",
-    identifier ? `ID SPM: ${identifier}` : "",
-    state.me.mail ? `Correo registrado: ${state.me.mail}` : "",
-  ]);
-}
-
-function requestAccountDeletion() {
-  if (!state.me) {
-    toast("Inicia sesion para gestionar tu cuenta");
-    return;
-  }
-  const identifier = state.me.id || state.me.id_spm || "";
-  accountSupportMail("Solicitud de baja de cuenta SPM", [
-    "Hola equipo SPM,",
-    "Solicito eliminar mi cuenta de SPM.",
-    identifier ? `ID SPM: ${identifier}` : "",
-    state.me.mail ? `Correo registrado: ${state.me.mail}` : "",
-  ]);
-}
-
 const ACCOUNT_FIELD_CONFIG = [
   { key: "rol", label: "Rol", admin: true },
   { key: "posicion", label: "Posicion", admin: true },
@@ -3126,293 +3272,408 @@ const ACCOUNT_FIELD_CONFIG = [
   { key: "mail", label: "Mail", admin: false },
   { key: "jefe", label: "Jefe", admin: true },
   { key: "gerente1", label: "Gerente 1", admin: true },
-  { key: "gerente2", label: "Gerente 2", admin: true },
+  { key: "gerente2", label: "Gerente 2", admin: true }
 ];
 
-async function submitPhoneChange(value) {
-  if (!state.me) {
-    throw new Error("Inicia sesion para gestionar tu telefono");
-  }
-  const trimmed = (value || "").trim();
-  if (!trimmed) {
-    throw new Error("Ingresa un telefono valido");
-  }
-  const sanitized = trimmed.replace(/\s+/g, " ");
-  const resp = await api("/me/telefono", {
-    method: "POST",
-    body: JSON.stringify({ telefono: sanitized }),
-  });
-  state.me.telefono = resp.telefono || sanitized;
-  renderAccountDetails();
-}
-
-async function submitMailChange(value) {
-  if (!state.me) {
-    throw new Error("Inicia sesion para gestionar tu correo");
-  }
-  const trimmed = (value || "").trim();
-  if (!trimmed || !trimmed.includes("@")) {
-    throw new Error("Ingresa un correo valido");
-  }
-  const resp = await api("/me/mail", {
-    method: "POST",
-    body: JSON.stringify({ mail: trimmed }),
-  });
-  state.me.mail = resp.mail || trimmed;
-  renderAccountDetails();
-}
-
-async function requestAdminFieldChange(fieldKey, value, label) {
-  const identifier = state.me?.id || state.me?.id_spm || "";
-  accountSupportMail(`Solicitud de actualizacion de ${label}`, [
-    "Hola equipo SPM,",
-    `Solicito actualizar ${label} a: ${value}.`,
-    identifier ? `ID SPM: ${identifier}` : "",
-    state.me.mail ? `Correo registrado: ${state.me.mail}` : "",
-  ]);
-}
+const SELF_FIELD_KEYS = new Set(["telefono", "mail"]);
+const ADMIN_FIELD_KEYS = new Set([
+  "rol",
+  "posicion",
+  "sector",
+  "jefe",
+  "gerente1",
+  "gerente2"
+]);
 
 const ACCOUNT_FIELD_MESSAGES = {
-  rol: "Sera notificado cuando el administrador apruebe los cambios solicitados.",
-  posicion: "Sera notificado cuando el administrador apruebe los cambios solicitados.",
-  sector: "Sera notificado cuando el administrador apruebe los cambios solicitados.",
-  telefono: "Sus cambios fueron aplicados correctamente.",
-  mail: "Sus cambios fueron aplicados correctamente.",
-  jefe: "Sera notificado cuando el administrador apruebe los cambios solicitados.",
-  gerente1: "Sera notificado cuando el administrador apruebe los cambios solicitados.",
-  gerente2: "Sera notificado cuando el administrador apruebe los cambios solicitados.",
+  telefono: "Telefono actualizado correctamente.",
+  mail: "Correo actualizado correctamente.",
+  admin: "Solicitud enviada. Un administrador debe aprobar el cambio."
 };
 
-const ACCOUNT_FIELD_DESCRIPTIONS = {
-  default: "Ingresa el nuevo valor y confirma para continuar.",
-  admin: "Este cambio enviara una solicitud al administrador para su aprobacion.",
-  telefono: "Actualiza tu numero de contacto. Usa solo numeros y caracteres validos.",
-  mail: "Actualiza tu correo electronico. Asegurate de que sea correcto.",
-};
-
-const accountEditState = {
-  modal: null,
-  fieldKey: null,
-  label: "",
-  requiresAdmin: false,
+let inlineEditState = {
+  field: null,
   input: null,
-  titleNode: null,
-  descriptionNode: null,
-  currentValueNode: null,
-  confirmBtn: null,
-  cancelBtn: null,
+  initialValue: "",
+  admin: false,
+  saving: false
 };
 
-function ensureAccountEditModal() {
-  if (accountEditState.modal) {
-    return accountEditState.modal;
+const passwordModalState = {
+  modal: null,
+  form: null,
+  inputs: {}
+};
+
+function resetInlineEditState() {
+  inlineEditState = {
+    field: null,
+    input: null,
+    initialValue: "",
+    admin: false,
+    saving: false
+  };
+}
+
+function getAccountFieldConfig(fieldKey) {
+  return ACCOUNT_FIELD_CONFIG.find((field) => field.key === fieldKey);
+}
+
+function startInlineEdit(fieldKey) {
+  if (!state.me || inlineEditState.saving) {
+    return;
+  }
+  if (inlineEditState.field && inlineEditState.field !== fieldKey) {
+    cancelInlineEdit(true);
+  } else if (inlineEditState.field === fieldKey) {
+    return;
+  }
+  const input = document.querySelector(`[data-field-input="${fieldKey}"]`);
+  if (!input) {
+    toast("No se encontro el campo solicitado");
+    return;
+  }
+  inlineEditState = {
+    field: fieldKey,
+    input,
+    initialValue: input.value,
+    admin: ADMIN_FIELD_KEYS.has(fieldKey),
+    saving: false
+  };
+  input.disabled = false;
+  input.classList.add("is-editing");
+  const wrapper = input.closest(".account-field");
+  wrapper?.classList.add("is-editing");
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
+}
+
+function cancelInlineEdit(revert = true) {
+  if (!inlineEditState.field) {
+    return;
+  }
+  const { input, initialValue } = inlineEditState;
+  if (input) {
+    if (revert) {
+      input.value = initialValue;
+    }
+    input.disabled = true;
+    input.classList.remove("is-editing");
+    const wrapper = input.closest(".account-field");
+    wrapper?.classList.remove("is-editing");
+  }
+  resetInlineEditState();
+}
+
+async function updateSelfField(fieldKey, value) {
+  const payload = { [fieldKey]: value };
+  const resp = await api("/usuarios/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+  if (resp?.usuario) {
+    state.me = { ...state.me, ...resp.usuario };
+  } else {
+    state.me = { ...state.me, [fieldKey]: value };
+  }
+}
+
+async function sendAdminChangeRequest(fieldKey, value) {
+  await api("/usuarios/me/cambios-pendientes", {
+    method: "POST",
+    body: JSON.stringify({
+      campo: fieldKey,
+      valor_nuevo: value
+    })
+  });
+}
+
+async function commitInlineEdit() {
+  if (!inlineEditState.field || !inlineEditState.input || inlineEditState.saving) {
+    return;
+  }
+  const { field, input, initialValue } = inlineEditState;
+  const newValue = input.value.trim();
+  const previousValue = (initialValue || "").trim();
+  if (newValue === previousValue) {
+    cancelInlineEdit(false);
+    return;
+  }
+  inlineEditState.saving = true;
+  try {
+    if (SELF_FIELD_KEYS.has(field)) {
+      if (field === "mail" && (!newValue || !newValue.includes("@"))) {
+        throw new Error("Ingresa un correo valido");
+      }
+      if (field === "telefono" && !newValue) {
+        throw new Error("Ingresa un telefono valido");
+      }
+      await updateSelfField(field, newValue);
+      const successMessage =
+        ACCOUNT_FIELD_MESSAGES[field] || "Informacion actualizada.";
+      toast(successMessage, true);
+    } else if (ADMIN_FIELD_KEYS.has(field)) {
+      if (!newValue) {
+        throw new Error("Ingresa un valor valido");
+      }
+      await sendAdminChangeRequest(field, newValue);
+      const adminMsg =
+        ACCOUNT_FIELD_MESSAGES[field] || ACCOUNT_FIELD_MESSAGES.admin;
+      toast(adminMsg);
+    } else {
+      throw new Error("Este campo no admite edicion");
+    }
+    resetInlineEditState();
+    renderAccountDetails();
+  } catch (error) {
+    inlineEditState.saving = false;
+    toast(error?.message || "No se pudo guardar el cambio");
+    input.focus();
+    input.select();
+  }
+}
+
+function handleAccountFieldEdit(fieldKey) {
+  startInlineEdit(fieldKey);
+}
+
+function handleInlineInputKeydown(event) {
+  if (!inlineEditState.field || event.target !== inlineEditState.input) {
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    commitInlineEdit();
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    cancelInlineEdit(true);
+  }
+}
+
+function handleInlineInputBlur(event) {
+  if (!inlineEditState.field || event.target !== inlineEditState.input) {
+    return;
+  }
+  if (inlineEditState.saving) {
+    return;
+  }
+  setTimeout(() => {
+    if (!inlineEditState.field) {
+      return;
+    }
+    if (document.activeElement === inlineEditState.input) {
+      return;
+    }
+    commitInlineEdit();
+  }, 120);
+}
+
+function ensurePasswordModal() {
+  if (passwordModalState.modal) {
+    return passwordModalState.modal;
   }
   const modal = document.createElement("div");
-  modal.id = "accountEditModal";
+  modal.id = "accountPasswordModal";
   modal.className = "modal hide";
   modal.setAttribute("role", "dialog");
   modal.setAttribute("aria-modal", "true");
-  modal.setAttribute("aria-labelledby", "accountEditTitle");
   modal.innerHTML = `
-    <div class="modal-content account-edit-modal" role="document">
-      <button type="button" class="modal-close" id="accountEditClose" aria-label="Cerrar">&times;</button>
-      <header class="account-edit__header">
-        <h3 id="accountEditTitle"></h3>
-        <p class="account-edit__current" id="accountEditCurrent"></p>
+    <div class="modal-content account-password-modal" role="document">
+      <button type="button" class="modal-close" id="accountPasswordClose" aria-label="Cerrar">&times;</button>
+      <header class="account-password__header">
+        <h3>Cambiar contrasena</h3>
+        <p>Ingresa tu contrasena actual y define una nueva.</p>
       </header>
-      <p class="account-edit__description" id="accountEditDescription"></p>
-      <label class="account-edit__label" for="accountEditInput">Nuevo valor</label>
-      <input type="text" id="accountEditInput" class="account-edit__input" autocomplete="off">
-      <div class="account-edit__footer">
-        <button type="button" class="btn sec" id="accountEditCancel">Cancelar</button>
-        <button type="button" class="btn pri" id="accountEditConfirm">Confirmar</button>
-      </div>
+      <form id="accountPasswordForm" class="account-password__form" autocomplete="off">
+        <label class="account-password__label">
+          <span>Contrasena actual</span>
+          <input type="password" name="current_password" required autocomplete="current-password">
+        </label>
+        <label class="account-password__label">
+          <span>Nueva contrasena</span>
+          <input type="password" name="new_password" required autocomplete="new-password" minlength="8">
+        </label>
+        <label class="account-password__label">
+          <span>Repetir nueva contrasena</span>
+          <input type="password" name="repeat_password" required autocomplete="new-password" minlength="8">
+        </label>
+        <div class="account-password__actions">
+          <button type="button" class="btn sec" id="accountPasswordCancel">Cancelar</button>
+          <button type="submit" class="btn pri">Guardar</button>
+        </div>
+      </form>
     </div>
   `;
-  modal.addEventListener("click", (ev) => {
-    if (ev.target === modal) {
-      closeAccountEditModal();
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closePasswordModal();
     }
   });
-  modal.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") {
-      closeAccountEditModal();
+  modal.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closePasswordModal();
     }
   });
   document.body.appendChild(modal);
 
-  accountEditState.modal = modal;
-  accountEditState.input = modal.querySelector("#accountEditInput");
-  accountEditState.titleNode = modal.querySelector("#accountEditTitle");
-  accountEditState.descriptionNode = modal.querySelector("#accountEditDescription");
-  accountEditState.currentValueNode = modal.querySelector("#accountEditCurrent");
-  accountEditState.confirmBtn = modal.querySelector("#accountEditConfirm");
-  accountEditState.cancelBtn = modal.querySelector("#accountEditCancel");
+  const form = modal.querySelector("#accountPasswordForm");
+  passwordModalState.modal = modal;
+  passwordModalState.form = form;
+  passwordModalState.inputs = {
+    current: form?.querySelector('input[name="current_password"]') || null,
+    next: form?.querySelector('input[name="new_password"]') || null,
+    repeat: form?.querySelector('input[name="repeat_password"]') || null
+  };
 
-  modal.querySelector("#accountEditClose")?.addEventListener("click", closeAccountEditModal);
-  accountEditState.cancelBtn?.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    closeAccountEditModal();
+  modal.querySelector("#accountPasswordClose")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    closePasswordModal();
   });
-  accountEditState.confirmBtn?.addEventListener("click", confirmAccountEditChange);
-  accountEditState.input?.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter") {
-      confirmAccountEditChange(ev);
-    }
+  modal.querySelector("#accountPasswordCancel")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    closePasswordModal();
   });
-
+  form?.addEventListener("submit", submitPasswordChange);
   return modal;
 }
 
-function openAccountEditModal(fieldKey, config) {
-  const modal = ensureAccountEditModal();
-  accountEditState.fieldKey = fieldKey;
-  accountEditState.label = config.label;
-  accountEditState.requiresAdmin = !!config.admin;
-
-  const currentValue = String(state.me?.[fieldKey] || "").trim();
-  accountEditState.input.value = currentValue;
-  accountEditState.input.setAttribute("data-initial", currentValue);
-  accountEditState.titleNode.textContent = `Editar ${config.label}`;
-  accountEditState.currentValueNode.textContent = currentValue ? `Valor actual: ${currentValue}` : "Valor actual: sin informacion";
-
-  const descriptionKey = config.admin ? "admin" : fieldKey;
-  const description = ACCOUNT_FIELD_DESCRIPTIONS[descriptionKey] || ACCOUNT_FIELD_DESCRIPTIONS.default;
-  accountEditState.descriptionNode.textContent = description;
-
-  modal.classList.remove("hide");
-  modal.setAttribute("aria-hidden", "false");
-
-  setTimeout(() => {
-    accountEditState.input?.focus();
-    accountEditState.input?.select();
-  }, 0);
-}
-
-function closeAccountEditModal() {
-  if (!accountEditState.modal) {
-    return;
-  }
-  accountEditState.modal.classList.add("hide");
-  accountEditState.modal.setAttribute("aria-hidden", "true");
-  accountEditState.fieldKey = null;
-  accountEditState.label = "";
-  accountEditState.requiresAdmin = false;
-}
-
-async function confirmAccountEditChange(ev) {
-  if (ev) {
-    ev.preventDefault();
-  }
-  if (!accountEditState.fieldKey || !state.me) {
-    return;
-  }
-  const fieldKey = accountEditState.fieldKey;
-  const config = ACCOUNT_FIELD_CONFIG.find((field) => field.key === fieldKey);
-  if (!config) {
-    toast("Campo no soportado");
-    return;
-  }
-  const rawValue = accountEditState.input?.value ?? "";
-  const trimmed = rawValue.trim();
-  if (!trimmed) {
-    toast("Ingresa un valor valido");
-    accountEditState.input?.focus();
-    return;
-  }
-
-  const currentValue = String(state.me[fieldKey] || "").trim();
-  if (trimmed === currentValue) {
-    toast("No hay cambios para guardar");
-    return;
-  }
-
-  try {
-    const feedback = await applyAccountFieldChange(fieldKey, trimmed, config);
-    closeAccountEditModal();
-    if (feedback) {
-      toast(feedback, true);
-    }
-  } catch (error) {
-    toast(error?.message || "No se pudo actualizar el campo");
-  }
-}
-
-async function applyAccountFieldChange(fieldKey, value, config) {
-  if (fieldKey === "telefono") {
-    await submitPhoneChange(value);
-  } else if (fieldKey === "mail") {
-    await submitMailChange(value);
-  } else if (config.admin) {
-    await requestAdminFieldChange(fieldKey, value, config.label);
-  } else {
-    state.me[fieldKey] = value;
-    renderAccountDetails();
-  }
-  return ACCOUNT_FIELD_MESSAGES[fieldKey] || "Cambios aplicados";
-}
-
-function handleAccountFieldEdit(fieldKey) {
+function openPasswordModal() {
   if (!state.me) {
-    toast("Inicia sesion para gestionar tu perfil");
+    toast("Inicia sesion para gestionar tu cuenta");
     return;
   }
-  const config = ACCOUNT_FIELD_CONFIG.find((field) => field.key === fieldKey);
-  if (!config) {
-    toast("Campo no soportado");
+  ensurePasswordModal();
+  if (!passwordModalState.modal) {
+    toast("No se pudo abrir el formulario de contrasena");
     return;
   }
-  openAccountEditModal(fieldKey, config);
-}
-
-function formatUserCentersList() {
-  const centers = parseCentrosList(state.me?.centros);
-  if (!centers.length) {
-    return [];
-  }
-  const catalog = getCatalogItems("centros", { activeOnly: true });
-  return centers.map((code) => {
-    const normalized = normalizeCentroCode(code);
-    const match = catalog.find((item) => normalizeCentroCode(item.codigo) === normalized);
-
-function formatUserCentersList() {
-  const centers = parseCentrosList(state.me?.centros);
-  if (!centers.length) {
-    return [];
-  }
-  const catalog = getCatalogItems("centros", { activeOnly: true });
-  return centers.map((code) => {
-    const normalized = normalizeCentroCode(code);
-    const match = catalog.find((item) => normalizeCentroCode(item.codigo) === normalized);
-    return match ? catalogueOptionLabel(match.codigo, match.nombre, null) : code;
+  passwordModalState.form?.reset();
+  passwordModalState.modal.classList.remove("hide");
+  passwordModalState.modal.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => {
+    passwordModalState.inputs.current?.focus();
   });
 }
 
+function closePasswordModal() {
+  if (!passwordModalState.modal) {
+    return;
+  }
+  passwordModalState.modal.classList.add("hide");
+  passwordModalState.modal.setAttribute("aria-hidden", "true");
+  passwordModalState.form?.reset();
+}
+
+async function submitPasswordChange(event) {
+  event.preventDefault();
+  if (!state.me) {
+    toast("Inicia sesion para gestionar tu cuenta");
+    return;
+  }
+  const current = passwordModalState.inputs.current?.value.trim() || "";
+  const next = passwordModalState.inputs.next?.value.trim() || "";
+  const repeat = passwordModalState.inputs.repeat?.value.trim() || "";
+  if (!current || !next || !repeat) {
+    toast("Completa todos los campos del formulario");
+    return;
+  }
+  if (next.length < 8) {
+    toast("La nueva contrasena debe tener al menos 8 caracteres");
+    return;
+  }
+  if (next !== repeat) {
+    toast("Las contrasenas deben coincidir");
+    passwordModalState.inputs.repeat?.focus();
+    return;
+  }
+  try {
+    await api("/usuarios/me/cambiar-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: current,
+        new_password: next,
+        repeat_password: repeat
+      })
+    });
+    toast("Contrasena actualizada correctamente.", true);
+    closePasswordModal();
+  } catch (error) {
+    toast(error?.message || "No se pudo cambiar la contrasena");
+    passwordModalState.inputs.current?.focus();
+  }
+}
+
+async function handleDeleteAccount() {
+  if (!state.me) {
+    toast("Inicia sesion para gestionar tu cuenta");
+    return;
+  }
+  const firstConfirm = window.confirm("Seguro que queres eliminar tu cuenta?");
+  if (!firstConfirm) {
+    return;
+  }
+  const secondConfirm = window.confirm(
+    "Esta accion es irreversible. Perderas todos tus registros y no podran recuperarse. Confirmas eliminar tu cuenta?"
+  );
+  if (!secondConfirm) {
+    return;
+  }
+  try {
+    await api("/usuarios/me", { method: "DELETE" });
+    toast("Tu cuenta fue eliminada correctamente.", true);
+    try {
+      await logout();
+    } catch (_ignored) {
+      state.me = null;
+      updateMenuVisibility();
+      state.items = [];
+      sessionStorage.removeItem("solicitudDraft");
+      window.location.href = "index.html";
+    }
+  } catch (error) {
+    toast(error?.message || "No se pudo eliminar la cuenta");
+  }
+}
+
 function renderAccountDetails() {
-  console.log("renderAccountDetails llamada");
   const section = document.getElementById("accountDetails");
   if (!section || !state.me) {
     return;
   }
 
+  resetInlineEditState();
   const user = state.me;
   const fullName = `${user.nombre || ""} ${user.apellido || ""}`.trim() || (user.id || user.id_spm || "Mi cuenta");
   const accountFields = ACCOUNT_FIELD_CONFIG.map((field) => {
     const valueRaw = field.key === "mail" ? user.mail : field.key === "telefono" ? user.telefono : user[field.key];
-    const valueText = String(valueRaw || "").trim() || "Sin informacion";
-    const editButton = `
-      <button type="button" class="account-field__edit" data-field="${field.key}" data-admin="${field.admin ? "1" : "0"}" title="Editar ${escapeHtml(field.label)}">
-        ${ICONS.pencil}
-      </button>
-    `;
+    const valueText = String(valueRaw || "").trim();
+    const placeholder = valueText ? "" : "Sin informacion";
+    const inputType = field.key === "mail" ? "email" : "text";
+    const inputMode = field.key === "telefono" ? "tel" : "text";
+    const tagClass = field.admin ? "account-field__tag account-field__tag--admin" : "account-field__tag account-field__tag--self";
+    const tagLabel = field.admin ? "Requiere aprobacion" : "Editable por usuario";
     return `
       <div class="account-field" data-field="${field.key}">
         <div class="account-field__label">
           <span>${escapeHtml(field.label)}</span>
+          <span class="${tagClass}">${tagLabel}</span>
         </div>
         <div class="account-field__value">
-          <span>${escapeHtml(valueText)}</span>
-          ${editButton}
+          <input
+            type="${inputType}"
+            inputmode="${inputMode}"
+            class="account-field__input"
+            data-field-input="${field.key}"
+            value="${escapeHtml(valueText)}"
+            ${placeholder ? ` placeholder="${escapeHtml(placeholder)}"` : ""}
+            autocomplete="off"
+            disabled
+          >
+          <button type="button" class="account-field__edit" data-field="${field.key}" aria-label="Editar ${escapeHtml(field.label)}">
+            ${ICONS.pencil}
+          </button>
         </div>
       </div>
     `;
@@ -3440,14 +3701,14 @@ function renderAccountDetails() {
         </div>
         <div class="account-centers__list">
           ${centersContent}
-          <button type="button" class="account-field__plus" id="accountRequestCenters" title="Solicitar acceso a más centros">
+          <button type="button" class="account-field__plus" id="accountRequestCenters" title="Solicitar acceso a mas centros">
             <span aria-hidden="true">+</span>
           </button>
         </div>
       </div>
       <div class="account-card__actions">
-        <button type="button" class="btn ghost" id="accountChangePassword">Cambiar Contraseña</button>
-        <button type="button" class="btn sec" id="requestAccountDeletion">Solicitar baja de cuenta</button>
+        <button type="button" class="btn ghost" id="accountChangePassword">Cambiar Contrasena</button>
+        <button type="button" class="btn danger" id="accountDeleteButton">Eliminar Cuenta</button>
       </div>
     </section>
   `;
@@ -3461,15 +3722,19 @@ function renderAccountDetails() {
     });
   });
 
+  section.querySelectorAll(".account-field__input").forEach((input) => {
+    input.addEventListener("keydown", handleInlineInputKeydown);
+    input.addEventListener("blur", handleInlineInputBlur);
+  });
 
   const changePasswordBtn = document.getElementById("accountChangePassword");
   if (changePasswordBtn) {
-    changePasswordBtn.addEventListener("click", requestPasswordChange);
+    changePasswordBtn.addEventListener("click", openPasswordModal);
   }
 
-  const deleteBtn = document.getElementById("requestAccountDeletion");
+  const deleteBtn = document.getElementById("accountDeleteButton");
   if (deleteBtn) {
-    deleteBtn.addEventListener("click", requestAccountDeletion);
+    deleteBtn.addEventListener("click", handleDeleteAccount);
   }
 
   const centersBtn = document.getElementById("accountRequestCenters");
@@ -3480,6 +3745,18 @@ function renderAccountDetails() {
       openCentersRequestModal();
     });
   }
+}
+function formatUserCentersList() {
+  const centers = parseCentrosList(state.me?.centros);
+  if (!centers.length) {
+    return [];
+  }
+  const catalog = getCatalogItems("centros", { activeOnly: true });
+  return centers.map((code) => {
+    const normalized = normalizeCentroCode(code);
+    const match = catalog.find((item) => normalizeCentroCode(item.codigo) === normalized);
+    return match ? catalogueOptionLabel(match.codigo, match.nombre, null) : code;
+  });
 }
 
 function normalizeCentroCode(value) {
@@ -3736,7 +4013,7 @@ async function submitCentersRequest() {
   }
 }
 
-// Funciones para gestiÃ³n de solicitudes de perfil por administradores
+// Funciones para gestión de solicitudes de perfil por administradores
 
 async function loadProfileRequests() {
   try {
@@ -3791,7 +4068,7 @@ function renderProfileRequests(requests) {
         </div>
         ${request.justification ? `
           <div class="justification">
-            <span class="justification-label">JustificaciÃ³n:</span> ${request.justification}
+            <span class="justification-label">Justificación:</span> ${request.justification}
           </div>
         ` : ''}
       </div>
@@ -3802,6 +4079,9 @@ function renderProfileRequests(requests) {
         <button class="btn btn-danger btn-sm" onclick="processProfileRequest(${request.id}, 'reject')">
           <i class="fas fa-times"></i> Rechazar
         </button>
+        <button class="btn btn-secondary btn-sm" onclick="openSolicitudDetail(${request.id})">
+          <i class="fas fa-eye"></i> Ver
+        </button>
       </div>
     </div>
   `).join('');
@@ -3811,8 +4091,8 @@ function renderProfileRequests(requests) {
 
 async function processProfileRequest(requestId, action) {
   const confirmMessage = action === 'approve'
-    ? '¿Estás seguro de aprobar esta solicitud?'
-    : '¿Estás seguro de rechazar esta solicitud?';
+    ? '�Est�s seguro de aprobar esta solicitud?'
+    : '�Est�s seguro de rechazar esta solicitud?';
 
   if (!confirm(confirmMessage)) return;
 
@@ -3834,7 +4114,7 @@ async function processProfileRequest(requestId, action) {
   }
 }
 
-// Inicializar carga de solicitudes cuando se carga la página de administración
+// Inicializar carga de solicitudes cuando se carga la p�gina de administraci�n
 function initAuthPage() {
   if (authPageInitialized) return;
   const authContainer = document.getElementById("auth");
@@ -3974,7 +4254,7 @@ function renderUsuarioTable(usuarios) {
 
 function deleteUsuario(id) {
   // TODO: Implement delete functionality
-  toast('Función de eliminar usuario no implementada aún');
+  toast('Funci�n de eliminar usuario no implementada a�n');
 }
 
 async function loadCentros() {
@@ -4016,6 +4296,8 @@ function renderCentrosSolicitudes(solicitudes) {
     tableBody.appendChild(row);
   });
 }
+
+
 
 function renderCentrosPresupuestos(presupuestos) {
   const tableBody = document.querySelector('#adminCentrosPresupuestos tbody');
@@ -4088,7 +4370,7 @@ function renderMaterialesTable(materiales) {
 
 function selectMaterial(material) {
   // TODO: Implement material selection and form population
-  toast('Selección de material no implementada aún');
+  toast('Selecci�n de material no implementada a�n');
 }
 
 async function loadAlmacenes() {
@@ -4136,7 +4418,7 @@ async function loadConfiguracion() {
     });
   } catch (error) {
     console.error('Error loading configuracion:', error);
-    toast('Error al cargar configuración');
+    toast('Error al cargar configuraci�n');
   }
 }
 
@@ -4198,12 +4480,12 @@ function renderConfigTable(resource, items) {
 
 function editConfigItem(resource, id) {
   // TODO: Implement edit functionality
-  toast(`Función de editar ${resource} no implementada aún`);
+  toast(`Funci�n de editar ${resource} no implementada a�n`);
 }
 
 function deleteConfigItem(resource, id) {
   // TODO: Implement delete functionality
-  toast(`Función de eliminar ${resource} no implementada aún`);
+  toast(`Funci�n de eliminar ${resource} no implementada a�n`);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -4281,7 +4563,7 @@ document.addEventListener("DOMContentLoaded", () => {
           await initAddMaterialsPage();
         } catch (error) {
           console.error(error);
-          toast(error?.message || "No se pudo inicializar la página de agregar materiales");
+          toast(error?.message || "No se pudo inicializar la p�gina de agregar materiales");
         }
       }
 
@@ -4301,9 +4583,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Controlar visibilidad del menú según el rol
+// Controlar visibilidad del men� seg�n el rol
 function updateMenuVisibility() {
-  // Asegurarse de que el DOM esté listo
+  // Asegurarse de que el DOM est� listo
   if (document.readyState !== 'complete' && document.readyState !== 'interactive') {
     setTimeout(updateMenuVisibility, 100);
     return;
@@ -4315,7 +4597,7 @@ function updateMenuVisibility() {
   const navPresupuesto = document.getElementById("navPresupuesto");
   const systemConsole = document.getElementById("systemConsole");
 
-  // Si ningún elemento existe aún, reintentar
+  // Si ning�n elemento existe a�n, reintentar
   if (!adminMenuItem && !plannerMenuItem && !approverMenuItem && !navPresupuesto && !systemConsole) {
     setTimeout(updateMenuVisibility, 100);
     return;
@@ -4324,7 +4606,7 @@ function updateMenuVisibility() {
   const rawUserRole = state.me?.rol;
   const userRole = rawUserRole?.toLowerCase()?.trim();
 
-  // Lógica específica para rol "solicitante"
+  // L�gica espec�fica para rol "solicitante"
   if (userRole === "solicitante") {
     // Para solicitante: mostrar solo Inicio, Solicitudes, Notificaciones y Presupuesto
     // Ocultar Panel de control, Planificador y Aprobaciones
@@ -4337,7 +4619,7 @@ function updateMenuVisibility() {
     return;
   }
 
-  // Lógica existente para otros roles
+  // L�gica existente para otros roles
   // Admin - mostrar solo si incluye admin o administrador
   if (adminMenuItem) {
     const shouldShowAdmin = userRole && (userRole.includes("admin") || userRole.includes("administrador"));
@@ -4368,7 +4650,7 @@ function updateMenuVisibility() {
     }
   }
 
-  // Presupuesto - mostrar para roles que no sean solicitante (ya que solicitante tiene lógica específica arriba)
+  // Presupuesto - mostrar para roles que no sean solicitante (ya que solicitante tiene l�gica espec�fica arriba)
   if (navPresupuesto) {
     // Mostrar presupuesto para admin, planificador, aprobador y otros roles
     // Solo ocultar para solicitante (que ya se maneja arriba)
@@ -4383,14 +4665,14 @@ function updateMenuVisibility() {
   }
 }
 
-// Llamar a la funciÃ³n cuando se actualiza el estado de las notificaciones
+// Llamar a la función cuando se actualiza el estado de las notificaciones
 const originalRenderNotificationsPage = renderNotificationsPage;
 renderNotificationsPage = function(data) {
   originalRenderNotificationsPage(data);
   updateMenuVisibility();
 };
 
-// ====== SHIMS DE COMPATIBILIDAD (parche rÃ¡pido) ======
+// ====== SHIMS DE COMPATIBILIDAD (parche rápido) ======
 var fmtMoney   = typeof fmtMoney   === "function" ? fmtMoney   : (v) => formatCurrency(v);
 var fmtDateTime= typeof fmtDateTime=== "function" ? fmtDateTime: (v) => formatDateTime(v);
 var fmtNumber  = typeof fmtNumber  === "function" ? fmtNumber  : (v) => {
@@ -4410,7 +4692,7 @@ var toastInfo  = typeof toastInfo  === "function" ? toastInfo  : (m) => toast(m)
 var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) => showTableSkeleton(sel, opts);
 // =====================================================
 
-// Módulo Planificador
+// M�dulo Planificador
 (function initPlanificador() {
   if (!/planificador\.html$/.test(location.pathname)) return;
 
@@ -4435,7 +4717,7 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   const detMeta = $("#detMeta");
   const tblItems = $("#tblItems tbody");
 
-  // Eventos de filtros y paginaciÃ³n
+  // Eventos de filtros y paginación
   $("#frmFilters").addEventListener("submit", (e)=>{ e.preventDefault(); state.pageMias=0; state.pagePend=0; loadQueues(); });
   $("#btnLimpiar").addEventListener("click", ()=>{ /* limpia inputs y reload */ loadQueues(); });
   $("#pgPrevMias").onclick = ()=>{ state.pageMias = Math.max(0, state.pageMias-1); loadQueues({only:"mias"}); };
@@ -4524,7 +4806,7 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   function renderMeta(s) {
     return `
       <div><b>Centro:</b> ${esc(s.centro)} | <b>Sector:</b> ${esc(s.sector)} | <b>Criticidad:</b> ${esc(s.criticidad || "-")}</div>
-      <div><b>JustificaciÃ³n:</b> ${esc(s.justificacion || "-")}</div>
+      <div><b>Justificación:</b> ${esc(s.justificacion || "-")}</div>
       <div><b>Total estimado:</b> <span id="detTotal">${fmtMoney(s.total_monto || 0)}</span></div>
     `;
   }
@@ -4824,6 +5106,13 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   loadStats();
   updateMenuVisibility();
 })();
+
+
+
+
+
+
+
 
 
 

@@ -361,3 +361,183 @@ Traceback (most recent call last):
     rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:09:08,207 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:09:18,687 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:17:55,658 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:18:16,674 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:19:59,421 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:20:32,980 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 61, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 41, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 15:38:12,837 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 62, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 42, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 19:52:00,114 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 62, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 42, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 20:06:55,818 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 62, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 42, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 20:18:18,767 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 62, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 42, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 20:24:11,114 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 62, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 42, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros
+2025-10-18 20:24:27,556 ERROR Unhandled error
+Traceback (most recent call last):
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 62, in obtener_catalogos
+    items = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\GitHub\SPM-2\src\backend\routes\catalogos.py", line 42, in _fetch_catalog
+    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalog_centros

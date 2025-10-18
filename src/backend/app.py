@@ -18,7 +18,8 @@ from .routes.admin import bp as admin_bp
 from .routes.abastecimiento import bp as abastecimiento_bp
 from .routes.archivos import bp as archivos_bp
 from .routes.auth import bp as auth_bp
-from .routes.catalogos import bp as catalogos_bp
+from .routes.catalogos import bp as catalogos_bp, almacenes_bp
+from .routes.usuarios import bp as usuarios_bp
 from .routes.materiales import bp as mat_bp
 from .routes.notificaciones import bp as notif_bp
 from .routes.planificador import bp as planner_bp
@@ -85,6 +86,8 @@ def create_app() -> Flask:
     app.register_blueprint(planner_bp)
     app.register_blueprint(chatbot_bp)
     app.register_blueprint(catalogos_bp)
+    app.register_blueprint(almacenes_bp)
+    app.register_blueprint(usuarios_bp)
     app.register_blueprint(archivos_bp)
     app.register_blueprint(abastecimiento_bp)
     app.register_blueprint(ai_bp)

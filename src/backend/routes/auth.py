@@ -1,18 +1,26 @@
 from __future__ import annotations
 import json
+import logging
 from flask import Blueprint, request, jsonify, make_response
 from ..db import get_connection
 from ..schemas import (
-    LoginRequest,
     RegisterRequest,
     UpdatePhoneRequest,
     AdditionalCentersRequest,
     UpdateMailRequest,
 )
-from ..security import verify_password, hash_password, create_access_token, verify_access_token
+from ..security import (
+    verify_password,
+    hash_password,
+    create_access_token,
+    create_refresh_token,
+    verify_access_token,
+)
+from ..config import Settings
 
 bp = Blueprint("auth", __name__, url_prefix="/api")
 COOKIE_NAME = "spm_token"
+logger = logging.getLogger(__name__)
 
 def _cookie_args():
     return dict(httponly=True, samesite="Lax", secure=False)
@@ -21,34 +29,44 @@ def _cookie_args():
 def login():
     if request.method == "OPTIONS":
         return "", 204
-    data = LoginRequest(**request.get_json(force=True))
+    payload = request.get_json(silent=True) or {}
+    if Settings.DEBUG:
+        logger.debug("Login payload keys: %s", sorted(payload.keys()))
+    username = payload.get("username") or payload.get("nombre") or payload.get("id") or payload.get("usuario")
+    password = payload.get("password") or payload.get("contrasena") or payload.get("pw")
+    if isinstance(username, str):
+        username = username.strip()
+    if isinstance(password, str):
+        password = password.strip()
+    if not username or not password:
+        return jsonify({"ok": False, "error": "invalid_credentials"}), 401
+    if Settings.DEBUG:
+        logger.debug("Login attempt for user '%s'", username)
     with get_connection() as con:
-        # permitimos login por id_spm o por mail
         cur = con.execute(
             """
             SELECT id_spm, nombre, apellido, rol, contrasena, sector, centros, posicion,
                    mail, telefono, id_ypf, jefe, gerente1, gerente2
               FROM usuarios
-             WHERE lower(id_spm)=lower(?) OR lower(mail)=lower(?)
+             WHERE id_spm = ? COLLATE NOCASE
+                OR mail = ? COLLATE NOCASE
+                OR nombre = ? COLLATE NOCASE
+             LIMIT 1
             """,
-            (data.id, data.id)
+            (username, username, username),
         )
         row = cur.fetchone()
-        valid = False
-        is_plain = False
-        try:
-            valid = verify_password(row["contrasena"], data.password)
-        except Exception:
-            # Para compatibilidad con contraseñas en texto plano
-            if row and row["contrasena"] == data.password:
-                valid = True
-                is_plain = True
-        if not row or not valid:
-            return jsonify({"ok": False, "error": {"code": "AUTH", "message": "Credenciales inválidas"}}), 401
-        token = create_access_token(row["id_spm"])
-        if is_plain:
-            # Actualizar la contraseña a hash para consistencia futura
-            new_hash = hash_password(data.password)
+        if Settings.DEBUG:
+            logger.debug("User lookup result for '%s': %s", username, "found" if row else "not found")
+        if not row:
+            return jsonify({"ok": False, "error": "invalid_credentials"}), 401
+        valid, needs_rehash = verify_password(row["contrasena"], password)
+        if not valid:
+            if Settings.DEBUG:
+                logger.debug("Password mismatch for '%s'", username)
+            return jsonify({"ok": False, "error": "invalid_credentials"}), 401
+        if needs_rehash:
+            new_hash = hash_password(password)
             con.execute("UPDATE usuarios SET contrasena = ? WHERE id_spm = ?", (new_hash, row["id_spm"]))
             con.commit()
         row_dict = dict(row)
@@ -56,22 +74,31 @@ def login():
         centros_raw = row_dict.get("centros")
         if isinstance(centros_raw, str) and centros_raw.strip():
             centros = [part.strip() for part in centros_raw.replace(";", ",").split(",") if part.strip()]
-        resp = make_response({"ok": True, "usuario": {
-            "id": row_dict.get("id_spm"),
-            "nombre": row_dict.get("nombre"),
-            "apellido": row_dict.get("apellido"),
-            "rol": row_dict.get("rol"),
-            "posicion": row_dict.get("posicion"),
-            "sector": row_dict.get("sector"),
-            "mail": row_dict.get("mail"),
-            "telefono": row_dict.get("telefono"),
-            "id_red": row_dict.get("id_ypf"),
-            "jefe": row_dict.get("jefe"),
-            "gerente1": row_dict.get("gerente1"),
-            "gerente2": row_dict.get("gerente2"),
-            "centros": centros,
-        }})
-        resp.set_cookie(COOKIE_NAME, token, **_cookie_args())
+        user_id = row_dict.get("id_spm")
+        access_token = create_access_token(user_id)
+        refresh_token = create_refresh_token(user_id)
+        body = {
+            "ok": True,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": row_dict.get("id_spm"),
+                "nombre": row_dict.get("nombre"),
+                "apellido": row_dict.get("apellido"),
+                "rol": row_dict.get("rol"),
+                "posicion": row_dict.get("posicion"),
+                "sector": row_dict.get("sector"),
+                "mail": row_dict.get("mail"),
+                "telefono": row_dict.get("telefono"),
+                "id_red": row_dict.get("id_ypf"),
+                "jefe": row_dict.get("jefe"),
+                "gerente1": row_dict.get("gerente1"),
+                "gerente2": row_dict.get("gerente2"),
+                "centros": centros,
+            },
+        }
+        resp = jsonify(body)
+        resp.set_cookie(COOKIE_NAME, access_token, **_cookie_args())
         return resp
 
 @bp.route("/logout", methods=["POST", "OPTIONS"])
