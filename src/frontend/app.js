@@ -424,21 +424,21 @@ function escapeHtml(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "ï¿½";
   const normalised = typeof value === "string" ? value.replace("T", " ") : value;
   const date = new Date(normalised);
   if (Number.isNaN(date.getTime())) {
-    return typeof value === "string" ? value : "—";
+    return typeof value === "string" ? value : "ï¿½";
   }
   return date.toLocaleString();
 }
 
 function formatDateOnly(value) {
-  if (!value) return "—";
+  if (!value) return "ï¿½";
   const normalised = typeof value === "string" ? value.replace("T", " ") : value;
   const date = new Date(normalised);
   if (Number.isNaN(date.getTime())) {
-    return typeof value === "string" ? value : "—";
+    return typeof value === "string" ? value : "ï¿½";
   }
   return date.toLocaleDateString();
 }
@@ -1773,7 +1773,7 @@ function clearAllStoredFilters() {
 
 function statusBadge(status) {
   const normalized = (status || "").toLowerCase();
-  const fallback = normalized ? normalized.replace(/_/g, " ") : "—";
+  const fallback = normalized ? normalized.replace(/_/g, " ") : "ï¿½";
   const label = STATUS_LABELS[normalized] || fallback;
   const pretty = STATUS_LABELS[normalized]
     ? label
@@ -2210,7 +2210,7 @@ function renderCart(items) {
     tr.innerHTML = `
       <td>${item.codigo}</td>
       <td>${item.descripcion || ""}</td>
-      <td>${item.unidad || "—"}</td>
+      <td>${item.unidad || "ï¿½"}</td>
       <td>${formatCurrency(precio)}</td>
       <td><input type="number" min="1" value="${cantidad}" data-index="${index}" class="qty-input"></td>
       <td>${formatCurrency(subtotal)}</td>
@@ -2581,7 +2581,7 @@ function bindPendingApprovalActions() {
   }
   table.dataset.actionsBound = "1";
   table.addEventListener("click", async (event) => {
-    const button = event.target?.closest?.("button[data-action]");
+    const button = event.target?.closest("button[data-action]");
     if (!button) {
       return;
     }
@@ -2600,7 +2600,7 @@ function bindCentroRequestActions() {
   }
   container.dataset.actionsBound = "1";
   container.addEventListener("click", async (event) => {
-    const button = event.target?.closest?.("button[data-center-request-id][data-action]");
+    const button = event.target?.closest("button[data-center-request-id][data-action]");
     if (!button) {
       return;
     }
@@ -2688,9 +2688,9 @@ function renderNotificationsPage(data) {
         const monto = Number(row.total_monto || 0);
         tr.innerHTML = `
           <td>#${row.id}</td>
-          <td>${escapeHtml(row.centro || "—")}</td>
-          <td>${escapeHtml(row.sector || "—")}</td>
-          <td>${escapeHtml(row.justificacion || "—")}</td>
+          <td>${escapeHtml(row.centro || "ï¿½")}</td>
+          <td>${escapeHtml(row.sector || "ï¿½")}</td>
+          <td>${escapeHtml(row.justificacion || "ï¿½")}</td>
           <td data-sort="${monto}">${formatCurrency(monto)}</td>
           <td data-sort="${row.created_at || ""}">${createdAt}</td>
           <td class="pending-actions">
@@ -3188,7 +3188,7 @@ async function recreateDraft(latestDraft, latestUserId) {
     if (idDisplay) {
       idDisplay.textContent = `#${resp.id}`;
     }
-    toast("Se recre? la solicitud. Intent? nuevamente.", true);
+    toast("Solicitud recreada. Ahora puedes editarla.", true);
     return resp.id;
   } catch (err) {
     toast(err.message);
@@ -3350,14 +3350,14 @@ function renderSolicitudDetail(detail) {
 
   idEl.textContent = `#${detail.id}`;
   statusEl.innerHTML = statusBadge(detail.status);
-  centroEl.textContent = detail.centro || "—";
-  sectorEl.textContent = detail.sector || "—";
-  centroCostosEl.textContent = detail.centro_costos || "—";
+  centroEl.textContent = detail.centro || "ï¿½";
+  sectorEl.textContent = detail.sector || "ï¿½";
+  centroCostosEl.textContent = detail.centro_costos || "ï¿½";
   if (almacenEl) {
-    almacenEl.textContent = detail.almacen_virtual || "—";
+    almacenEl.textContent = detail.almacen_virtual || "ï¿½";
   }
   if (criticidadEl) {
-    criticidadEl.textContent = detail.criticidad || "—";
+    criticidadEl.textContent = detail.criticidad || "ï¿½";
   }
   if (fechaEl) {
     if (detail.fecha_necesidad) {
@@ -3366,18 +3366,18 @@ function renderSolicitudDetail(detail) {
         ? detail.fecha_necesidad
         : fecha.toLocaleDateString();
     } else {
-      fechaEl.textContent = "—";
+      fechaEl.textContent = "ï¿½";
     }
   }
-  justEl.textContent = detail.justificacion || "—";
-  createdEl.textContent = detail.created_at ? new Date(detail.created_at).toLocaleString() : "—";
-  updatedEl.textContent = detail.updated_at ? new Date(detail.updated_at).toLocaleString() : "—";
+  justEl.textContent = detail.justificacion || "ï¿½";
+  createdEl.textContent = detail.created_at ? new Date(detail.created_at).toLocaleString() : "ï¿½";
+  updatedEl.textContent = detail.updated_at ? new Date(detail.updated_at).toLocaleString() : "ï¿½";
   totalEl.textContent = formatCurrency(detail.total_monto || 0);
   if (aprobadorEl) {
-    aprobadorEl.textContent = detail.aprobador_nombre || "—";
+    aprobadorEl.textContent = detail.aprobador_nombre || "ï¿½";
   }
   if (planificadorEl) {
-    planificadorEl.textContent = detail.planner_nombre || "—";
+    planificadorEl.textContent = detail.planner_nombre || "ï¿½";
   }
 
   const cancelRequest = detail.cancel_request || null;
@@ -3385,7 +3385,7 @@ function renderSolicitudDetail(detail) {
   cancelInfo.textContent = "";
   if (detail.status === "cancelada") {
     const reason = detail.cancel_reason ? `Motivo: ${detail.cancel_reason}` : "Sin motivo indicado";
-    const when = detail.cancelled_at ? ` · ${formatDateTime(detail.cancelled_at)}` : "";
+    const when = detail.cancelled_at ? ` ï¿½ ${formatDateTime(detail.cancelled_at)}` : "";
     cancelInfo.textContent = `${reason}${when}`;
     cancelInfo.classList.remove("hide");
   } else if (cancelRequest && cancelRequest.status === "pendiente") {
@@ -3411,11 +3411,11 @@ function renderSolicitudDetail(detail) {
       const cantidad = Number(item.cantidad ?? 0);
       const cantidadFmt = Number.isFinite(cantidad)
         ? cantidad.toLocaleString("es-AR")
-        : item.cantidad || "—";
+        : item.cantidad || "ï¿½";
       tr.innerHTML = `
-        <td>${item.codigo || "—"}</td>
+        <td>${item.codigo || "ï¿½"}</td>
         <td>${item.descripcion || ""}</td>
-        <td>${item.unidad || "—"}</td>
+        <td>${item.unidad || "ï¿½"}</td>
         <td>${formatCurrency(item.precio_unitario)}</td>
         <td>${cantidadFmt}</td>
         <td>${formatCurrency(item.subtotal)}</td>
@@ -3515,7 +3515,7 @@ async function requestCancelSelectedSolicitud() {
       body: JSON.stringify({ reason }),
     });
     if (response?.status === "cancelacion_pendiente") {
-      toast("Cancelación enviada. pendiente de aprobación del planificador.", true);
+      toast("Cancelaciï¿½n enviada. pendiente de aprobaciï¿½n del planificador.", true);
     } else {
       toast("Solicitud cancelada", true);
     }
@@ -3536,7 +3536,7 @@ async function requestCancelSelectedSolicitud() {
 function resumeDraftFromDetail() {
   const detail = state.selectedSolicitud;
   if (!detail || detail.status !== "draft") {
-    toast("Solo podés editar solicitudes en borrador");
+    toast("Solo podï¿½s editar solicitudes en borrador");
     return;
   }
   const userId = currentUserId();
@@ -3587,7 +3587,7 @@ function showMaterialSuggestions(container, items, codeSuggest, descSuggest) {
   items.forEach((material) => {
     const normalized = normalizeMaterial(material);
     const option = document.createElement("div");
-    option.textContent = `${normalized.codigo} · ${normalized.descripcion}`;
+    option.textContent = `${normalized.codigo} ï¿½ ${normalized.descripcion}`;
     option.onclick = () => {
       if (codeInput) codeInput.value = normalized.codigo;
       if (descInput) descInput.value = normalized.descripcion;
@@ -3664,7 +3664,7 @@ function openMaterialDetailModal() {
   if (!modal || !title || !body) {
     return;
   }
-  title.textContent = `${material.codigo} · ${material.descripcion}`;
+  title.textContent = `${material.codigo} ï¿½ ${material.descripcion}`;
   body.textContent = material.descripcion_larga;
   modal.classList.remove("hide");
 }
@@ -3878,7 +3878,7 @@ const accountFieldEditor = (() => {
         toastOk("Cambios aplicados");
       } else {
         console.info("[account] solicitud enviada", { field, value: sanitizedValue });
-        toastInfo("Cambios solicitados al Administrador, será notificado cuando se aprueben");
+        toastInfo("Cambios solicitados al Administrador, serï¿½ notificado cuando se aprueben");
       }
       shouldClose = true;
     } catch (error) {
@@ -4362,7 +4362,7 @@ async function submitCentersRequest() {
   }
 }
 
-// Funciones para gestión de solicitudes de perfil por administradores
+// Funciones para gestiï¿½n de solicitudes de perfil por administradores
 
 async function loadProfileRequests() {
   try {
@@ -4417,7 +4417,7 @@ function renderProfileRequests(requests) {
         </div>
         ${request.justification ? `
           <div class="justification">
-            <span class="justification-label">Justificación:</span> ${request.justification}
+            <span class="justification-label">Justificaciï¿½n:</span> ${request.justification}
           </div>
         ` : ''}
       </div>
@@ -5026,14 +5026,14 @@ function updateMenuVisibility() {
   }
 }
 
-// Llamar a la función cuando se actualiza el estado de las notificaciones
+// Llamar a la funciï¿½n cuando se actualiza el estado de las notificaciones
 const originalRenderNotificationsPage = renderNotificationsPage;
 renderNotificationsPage = function(data) {
   originalRenderNotificationsPage(data);
   updateMenuVisibility();
 };
 
-// ====== SHIMS DE COMPATIBILIDAD (parche rápido) ======
+// ====== SHIMS DE COMPATIBILIDAD (parche rï¿½pido) ======
 var fmtMoney   = typeof fmtMoney   === "function" ? fmtMoney   : (v) => formatCurrency(v);
 var fmtDateTime= typeof fmtDateTime=== "function" ? fmtDateTime: (v) => formatDateTime(v);
 var fmtNumber  = typeof fmtNumber  === "function" ? fmtNumber  : (v) => {
@@ -5078,7 +5078,7 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   const detMeta = $("#detMeta");
   const tblItems = $("#tblItems tbody");
 
-  // Eventos de filtros y paginación
+  // Eventos de filtros y paginaciï¿½n
   $("#frmFilters").addEventListener("submit", (e)=>{ e.preventDefault(); state.pageMias=0; state.pagePend=0; loadQueues(); });
   $("#btnLimpiar").addEventListener("click", ()=>{ /* limpia inputs y reload */ loadQueues(); });
   $("#pgPrevMias").onclick = ()=>{ state.pageMias = Math.max(0, state.pageMias-1); loadQueues({only:"mias"}); };
@@ -5167,7 +5167,7 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   function renderMeta(s) {
     return `
       <div><b>Centro:</b> ${esc(s.centro)} | <b>Sector:</b> ${esc(s.sector)} | <b>Criticidad:</b> ${esc(s.criticidad || "-")}</div>
-      <div><b>Justificación:</b> ${esc(s.justificacion || "-")}</div>
+      <div><b>Justificaciï¿½n:</b> ${esc(s.justificacion || "-")}</div>
       <div><b>Total estimado:</b> <span id="detTotal">${fmtMoney(s.total_monto || 0)}</span></div>
     `;
   }

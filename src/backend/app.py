@@ -47,6 +47,7 @@ def create_app() -> Flask:
     app.config["JSON_SORT_KEYS"] = False
     app.config["JSONIFY_PRETTYPRINT_REGULAR"] = Settings.DEBUG
     app.config["MAX_CONTENT_LENGTH"] = Settings.MAX_CONTENT_LENGTH
+    app.config["JSON_AS_ASCII"] = False  # ← Nueva línea para permitir UTF-8 en JSON
 
     _setup_logging(app)
     ensure_catalog_tables(app.logger)
@@ -56,6 +57,12 @@ def create_app() -> Flask:
         content_type = response.headers.get("Content-Type", "")
         if isinstance(content_type, str) and 'text/html' in content_type.lower():
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        # Force UTF-8 charset
+        if "charset" not in content_type.lower():
+            if "application/json" in content_type:
+                response.headers["Content-Type"] = "application/json; charset=utf-8"
+            elif "text/html" in content_type:
+                response.headers["Content-Type"] = "text/html; charset=utf-8"
         return response
 
     # try:

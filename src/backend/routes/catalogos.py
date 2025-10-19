@@ -1,6 +1,6 @@
 from __future__ import annotations
 import sqlite3
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, jsonify
 from typing import Any, Dict, Optional, Tuple
 from ..db import get_connection
 from ..security import verify_access_token
@@ -129,13 +129,13 @@ def obtener_almacenes():
     with get_connection() as con:
         rows = con.execute(
             """
-            SELECT id_almacen, id_centro, nombre
+            SELECT id, codigo, nombre, centro_codigo, activo
             FROM almacenes
             WHERE activo = 1
-              AND (? IS NULL OR id_centro = ?)
+              AND (? IS NULL OR centro_codigo = ?)
             ORDER BY nombre
             """,
             params,
         ).fetchall()
     current_app.logger.debug("Almacenes activos devueltos: %d (centro=%s)", len(rows), centro or "todos")
-    return rows
+    return jsonify(rows)

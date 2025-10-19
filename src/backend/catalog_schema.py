@@ -105,7 +105,7 @@ def _seed_if_empty(logger: Optional[Logger] = None) -> None:
         return
     with get_connection() as con:
         for table, rows in SEED_DATA.items():
-            count = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            count = len(con.execute(f"SELECT 1 FROM {table}").fetchall())
             if count:
                 continue
             for row in rows:
