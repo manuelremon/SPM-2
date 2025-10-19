@@ -19,7 +19,7 @@ from .routes.abastecimiento import bp as abastecimiento_bp
 from .routes.archivos import bp as archivos_bp
 from .routes.auth import bp as auth_bp
 from .routes.catalogos import bp as catalogos_bp, almacenes_bp
-from .routes.usuarios import bp as usuarios_bp
+from .routes.usuarios import bp as usuarios_bp, bp_me as usuarios_me_bp
 from .routes.materiales import bp as mat_bp
 from .routes.notificaciones import bp as notif_bp
 from .routes.planificador import bp as planner_bp
@@ -27,6 +27,7 @@ from .routes.presupuestos import bp as presup_bp
 from .routes.solicitudes import bp as sol_bp
 from .routes.chatbot import bp as chatbot_bp
 from .routes.ai import bp as ai_bp
+from .catalog_schema import ensure_catalog_tables
 
 def _setup_logging(app: Flask) -> None:
     Settings.ensure_dirs()
@@ -48,6 +49,15 @@ def create_app() -> Flask:
     app.config["MAX_CONTENT_LENGTH"] = Settings.MAX_CONTENT_LENGTH
 
     _setup_logging(app)
+    ensure_catalog_tables(app.logger)
+
+    @app.after_request
+    def add_no_store_headers(response):
+        content_type = response.headers.get("Content-Type", "")
+        if isinstance(content_type, str) and 'text/html' in content_type.lower():
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response
+
     # try:
     #     build_db(force=False)
     # except Exception as e:
@@ -88,6 +98,7 @@ def create_app() -> Flask:
     app.register_blueprint(catalogos_bp)
     app.register_blueprint(almacenes_bp)
     app.register_blueprint(usuarios_bp)
+    app.register_blueprint(usuarios_me_bp)
     app.register_blueprint(archivos_bp)
     app.register_blueprint(abastecimiento_bp)
     app.register_blueprint(ai_bp)

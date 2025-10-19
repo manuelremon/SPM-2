@@ -15,6 +15,7 @@ from ..security import (
     create_access_token,
     create_refresh_token,
     verify_access_token,
+    verify_refresh_token,
 )
 from ..config import Settings
 
@@ -108,6 +109,28 @@ def logout():
     resp = make_response({"ok": True})
     resp.delete_cookie(COOKIE_NAME)
     return resp
+
+@bp.route("/refresh", methods=["POST", "OPTIONS"])
+def refresh():
+    if request.method == "OPTIONS":
+        return "", 204
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("refresh_token")
+    if not token:
+        return {"ok": False, "error": {"code": "NOREFRESH", "message": "Refresh token requerido"}}, 400
+    try:
+        data = verify_refresh_token(token)
+    except Exception:
+        return {"ok": False, "error": {"code": "BADTOKEN", "message": "Refresh token invalido"}}, 401
+    user_id = data.get("sub")
+    if not user_id:
+        return {"ok": False, "error": {"code": "BADTOKEN", "message": "Refresh token invalido"}}, 401
+    access_token = create_access_token(user_id)
+    refresh_token = create_refresh_token(user_id)
+    response = jsonify({"ok": True, "access_token": access_token, "refresh_token": refresh_token})
+    response.set_cookie(COOKIE_NAME, access_token, **_cookie_args())
+    return response
+
 
 @bp.route("/register", methods=["POST", "OPTIONS"])
 def register():

@@ -1,6 +1,7 @@
 from __future__ import annotations
+import sqlite3
 from flask import Blueprint, request, current_app
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Tuple
 from ..db import get_connection
 from ..security import verify_access_token
 from .admin import CATALOG_RESOURCES
@@ -10,7 +11,7 @@ almacenes_bp = Blueprint("almacenes", __name__, url_prefix="/api/almacenes")
 COOKIE_NAME = "spm_token"
 
 
-def _require_auth() -> str | None:
+def _require_auth() -> Optional[str]:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         header = request.headers.get("Authorization", "")
@@ -33,13 +34,36 @@ def _row_to_item(meta: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
     return item
 
 
-def _fetch_catalog(con, resource: str, *, include_inactive: bool = False):
+def _table_exists(con: sqlite3.Connection, name: str) -> bool:
+    try:
+        row = con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
+            (name,),
+        ).fetchone()
+    except sqlite3.Error:
+        raise
+    return bool(row)
+
+
+def _fetch_catalog(
+    con: sqlite3.Connection,
+    resource: str,
+    *,
+    include_inactive: bool = False,
+) -> Tuple[Optional[list], Optional[Dict[str, Any]]]:
     meta = CATALOG_RESOURCES.get(resource)
     if not meta:
-        return None
+        return None, None
     table = meta["table"]
+    if not _table_exists(con, table):
+        current_app.logger.warning("Tabla de catalogo faltante: %s (resource=%s)", table, resource)
+        return [], {"resource": resource, "message": f"Tabla {table} ausente"}
     order_by = meta.get("order_by") or "id"
-    rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+    try:
+        rows = con.execute(f"SELECT * FROM {table} ORDER BY {order_by}").fetchall()
+    except sqlite3.Error:
+        current_app.logger.exception("Error consultando catalogo %s", resource)
+        raise
     items = []
     for row in rows:
         item = _row_to_item(meta, row)
@@ -47,7 +71,7 @@ def _fetch_catalog(con, resource: str, *, include_inactive: bool = False):
             if not item.get("activo", False):
                 continue
         items.append(item)
-    return items
+    return items, None
 
 
 @bp.get("")
@@ -55,13 +79,23 @@ def obtener_catalogos():
     uid = _require_auth()
     if not uid:
         return {"ok": False, "error": {"code": "NOAUTH", "message": "No autenticado"}}, 401
-    include_inactive = request.args.get("include_inactive", "0").lower() in {"1", "true", "si", "sí"}
+    include_inactive_raw = request.args.get("include_inactive", "0").lower()
+    include_inactive = include_inactive_raw in {"1", "true", "si", "s\u00ed"}
     data: Dict[str, Any] = {}
-    with get_connection() as con:
-        for resource in CATALOG_RESOURCES:
-            items = _fetch_catalog(con, resource, include_inactive=include_inactive)
-            data[resource] = items or []
-    return {"ok": True, "data": data}
+    warnings = []
+    try:
+        with get_connection() as con:
+            for resource in CATALOG_RESOURCES:
+                items, warning = _fetch_catalog(con, resource, include_inactive=include_inactive)
+                if warning:
+                    warnings.append(warning)
+                data[resource] = items or []
+    except sqlite3.Error:
+        return {"ok": False, "error": {"code": "DB_ERROR", "message": "DB error"}}, 500
+    response: Dict[str, Any] = {"ok": True, "data": data}
+    if warnings:
+        response["warnings"] = warnings
+    return response
 
 
 @bp.get("/<resource>")
@@ -69,12 +103,20 @@ def obtener_catalogo(resource: str):
     uid = _require_auth()
     if not uid:
         return {"ok": False, "error": {"code": "NOAUTH", "message": "No autenticado"}}, 401
-    include_inactive = request.args.get("include_inactive", "0").lower() in {"1", "true", "si", "sí"}
-    with get_connection() as con:
-        items = _fetch_catalog(con, resource, include_inactive=include_inactive)
-        if items is None:
-            return {"ok": False, "error": {"code": "UNKNOWN", "message": "Recurso desconocido"}}, 404
-    return {"ok": True, "items": items}
+    include_inactive_raw = request.args.get("include_inactive", "0").lower()
+    include_inactive = include_inactive_raw in {"1", "true", "si", "s\u00ed"}
+    try:
+        with get_connection() as con:
+            items, warning = _fetch_catalog(con, resource, include_inactive=include_inactive)
+            if items is None:
+                return {"ok": False, "error": {"code": "UNKNOWN", "message": "Recurso desconocido"}}, 404
+            response: Dict[str, Any] = {"ok": True, "items": items}
+            if warning:
+                response["warnings"] = [warning]
+            return response
+    except sqlite3.Error:
+        current_app.logger.exception("Error consultando catalogo %s", resource)
+        return {"ok": False, "error": {"code": "DB_ERROR", "message": "DB error"}}, 500
 
 
 @almacenes_bp.get("")
@@ -97,4 +139,3 @@ def obtener_almacenes():
         ).fetchall()
     current_app.logger.debug("Almacenes activos devueltos: %d (centro=%s)", len(rows), centro or "todos")
     return rows
-

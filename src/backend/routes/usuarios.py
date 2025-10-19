@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from flask import Blueprint, current_app, request
+import re
+
+from flask import Blueprint, current_app, request, jsonify
 
 from ..db import get_connection
 from ..security import hash_password, verify_access_token, verify_password
@@ -17,6 +19,12 @@ REASSIGN_CANDIDATES: Dict[str, Tuple[str, ...]] = {
     "solicitudes": ("id_usuario", "aprobador_id", "responsable_id", "planner_id"),
     "planificador_asignaciones": ("usuario_id", "asignado_a", "planificador_id"),
 }
+
+
+bp_me = Blueprint("usuarios_me", __name__, url_prefix="/api/me")
+
+PHONE_ALLOWED_RE = re.compile(r"^[0-9+()\-\s]{0,25}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _require_user_id() -> Tuple[Optional[str], Optional[Tuple[str, str, int]]]:
@@ -163,7 +171,7 @@ def obtener_mi_usuario():
     uid, error = _require_user_id()
     if error:
         code, msg, status = error
-        return {"ok": False, "error": {"code": code, "message": msg}}, status
+        return jsonify({"ok": False, "error": {"code": code, "message": msg}}), status
     with get_connection() as con:
         user = _get_user(con, uid)
         if not user:
@@ -179,7 +187,7 @@ def actualizar_mi_usuario():
     uid, error = _require_user_id()
     if error:
         code, msg, status = error
-        return {"ok": False, "error": {"code": code, "message": msg}}, status
+        return jsonify({"ok": False, "error": {"code": code, "message": msg}}), status
     payload = request.get_json(silent=True) or {}
     updates: Dict[str, Any] = {}
     for field in SELF_EDITABLE_FIELDS:
@@ -279,58 +287,82 @@ def cambiar_password():
     return {"ok": True}
 
 
-@bp.post("/me/cambios-pendientes")
-def crear_cambio_pendiente():
-    uid, error = _require_user_id()
-    if error:
-        code, msg, status = error
-        return {"ok": False, "error": {"code": code, "message": msg}}, status
-    payload = request.get_json(silent=True) or {}
-    campo = (payload.get("campo") or "").strip()
-    valor_nuevo = (payload.get("valor_nuevo") or "").strip()
-    _motivo = (payload.get("motivo") or "").strip()
+def _create_user_change_request(uid: str, campo: str, valor_nuevo: str):
     if campo not in ADMIN_REVIEW_FIELDS:
-        return {
-            "ok": False,
-            "error": {
-                "code": "BADFIELD",
-                "message": "El campo no admite solicitudes de cambio",
-            },
-        }, 400
+        return {"ok": False, "error": {"code": "BADFIELD", "message": "El campo no admite solicitudes de cambio"}}, 400
     if not valor_nuevo:
-        return {
-            "ok": False,
-            "error": {"code": "NOVALUE", "message": "Debe indicar el nuevo valor"},
-        }, 400
+        return {"ok": False, "error": {"code": "NOVALUE", "message": "Debe indicar el nuevo valor"}}, 400
     with get_connection() as con:
         con.execute("BEGIN")
         _ensure_user_change_table(con)
         user = _get_user(con, uid)
         if not user:
-            return {
-                "ok": False,
-                "error": {"code": "NOUSER", "message": "Usuario no encontrado"},
-            }, 404
+            con.rollback()
+            return {"ok": False, "error": {"code": "NOUSER", "message": "Usuario no encontrado"}}, 404
         valor_actual = (user.get(campo) or "").strip() or None
-        content = {
-            "user_id": uid,
-            "campo": campo,
-            "valor_actual": valor_actual,
-            "valor_nuevo": valor_nuevo,
-        }
-        con.execute(
-            """
+        content = {"user_id": uid, "campo": campo, "valor_actual": valor_actual, "valor_nuevo": valor_nuevo}
+        con.execute("""
             INSERT INTO user_change_requests (user_id, campo, valor_actual, valor_nuevo, estado)
             VALUES (:user_id, :campo, :valor_actual, :valor_nuevo, 'pendiente')
-            """,
-            content,
-        )
-        request_id = con.execute(
-            "SELECT last_insert_rowid() AS rid"
-        ).fetchone()["rid"]
-        # Motivo no se almacena explícitamente; se podría registrar en otra tabla/notificación en el futuro.
+        """, content)
+        request_id = con.execute("SELECT last_insert_rowid() AS rid").fetchone()["rid"]
         con.commit()
-    return {"ok": True, "request_id": request_id}
+    return {"ok": True, "request_id": request_id}, 200
+
+
+@bp_me.route("/fields", methods=["PATCH", "POST"])
+def update_me_fields():
+    uid, error = _require_user_id()
+    if error:
+        code, msg, status = error
+        return jsonify({"ok": False, "error": {"code": code, "message": msg}}), status
+    data = request.get_json(silent=True) or {}
+    field = (data.get("field") or "").strip().lower()
+    value = data.get("value", "")
+    if field not in SELF_EDITABLE_FIELDS:
+        return jsonify({"ok": False, "error": "Campo no editable"}), 400
+    if field == "telefono":
+        value = re.sub(r"[^0-9+()\-\s]", "", str(value or "")).strip()
+        if not value or len(value) > 25 or not PHONE_ALLOWED_RE.fullmatch(value):
+            return jsonify({"ok": False, "error": "Telefono invalido"}), 400
+    else:  # mail
+        value = str(value or "").strip().lower()
+        if not EMAIL_RE.fullmatch(value):
+            return jsonify({"ok": False, "error": "Email invalido"}), 400
+    with get_connection() as con:
+        con.execute(f"UPDATE usuarios SET {field} = ? WHERE id_spm = ?", (value, uid))
+        con.commit()
+    return jsonify({"ok": True, "field": field, "value": value})
+
+
+@bp_me.route("/change-requests", methods=["POST"])
+def create_me_change_request():
+    uid, error = _require_user_id()
+    if error:
+        code, msg, status = error
+        return jsonify({"ok": False, "error": {"code": code, "message": msg}}), status
+    data = request.get_json(silent=True) or {}
+    campo = (data.get("field") or "").strip()
+    valor_nuevo = (data.get("value") or "").strip()
+    response, status = _create_user_change_request(uid, campo, valor_nuevo)
+    if isinstance(response, dict):
+        return jsonify(response), status
+    return response, status
+
+
+@bp.post("/me/cambios-pendientes")
+def crear_cambio_pendiente():
+    uid, error = _require_user_id()
+    if error:
+        code, msg, status = error
+        return jsonify({"ok": False, "error": {"code": code, "message": msg}}), status
+    payload = request.get_json(silent=True) or {}
+    campo = (payload.get("campo") or "").strip()
+    valor_nuevo = (payload.get("valor_nuevo") or "").strip()
+    response, status = _create_user_change_request(uid, campo, valor_nuevo)
+    if isinstance(response, dict):
+        return jsonify(response), status
+    return response, status
 
 
 @bp.get("/cambios-pendientes")

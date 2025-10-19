@@ -50,3 +50,10 @@ def create_refresh_token(sub: str) -> str:
 def verify_access_token(token: str) -> Dict[str, Any]:
     return jwt.decode(token, Settings.SECRET_KEY, algorithms=["HS256"])
 
+def verify_refresh_token(token: str) -> Dict[str, Any]:
+    data = jwt.decode(token, Settings.SECRET_KEY, algorithms=["HS256"])
+    if data.get("typ") != "refresh":
+        raise jwt.InvalidTokenError("Invalid token type")
+    return data
+
+
