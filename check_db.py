@@ -27,4 +27,55 @@ if table_exists:
 else:
     print("La tabla 'materiales' NO existe.")
 
+# Verificar almacenes
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='almacenes';")
+table_exists = cursor.fetchone()
+
+if table_exists:
+    print("La tabla 'almacenes' existe.")
+    cursor.execute("SELECT COUNT(*) FROM almacenes;")
+    count = cursor.fetchone()[0]
+    print(f"Registros en la tabla: {count}")
+    cursor.execute("SELECT * FROM almacenes LIMIT 5;")
+    rows = cursor.fetchall()
+    print("Primeros 5 registros:")
+    for row in rows:
+        print(f"  {row}")
+else:
+    print("La tabla 'almacenes' no existe.")
+
+# Verificar catalog_almacenes
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='catalog_almacenes';")
+table_exists = cursor.fetchone()
+
+if table_exists:
+    print("La tabla 'catalog_almacenes' existe.")
+    cursor.execute("SELECT COUNT(*) FROM catalog_almacenes;")
+    count = cursor.fetchone()[0]
+    print(f"Registros en la tabla: {count}")
+    cursor.execute("SELECT * FROM catalog_almacenes LIMIT 5;")
+    rows = cursor.fetchall()
+    print("Primeros 5 registros:")
+    for row in rows:
+        print(f"  {row}")
+else:
+    print("La tabla 'catalog_almacenes' no existe.")
+
+# Verificar catalog_centros
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='catalog_centros';")
+table_exists = cursor.fetchone()
+
+if table_exists:
+    print("La tabla 'catalog_centros' existe.")
+    cursor.execute("SELECT COUNT(*) FROM catalog_centros;")
+    count = cursor.fetchone()[0]
+    print(f"Registros en la tabla: {count}")
+    cursor.execute("SELECT * FROM catalog_centros LIMIT 5;")
+    rows = cursor.fetchall()
+    print("Primeros 5 registros:")
+    for row in rows:
+        print(f"  {row}")
+else:
+    print("La tabla 'catalog_centros' no existe.")
+
 conn.close()
