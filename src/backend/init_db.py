@@ -353,7 +353,7 @@ def _backfill_catalog_tables(con: sqlite3.Connection) -> None:
     _insert_ignore_many(con, "catalog_sectores", ("nombre", "descripcion", "activo"), sector_rows)
 
 
-def build_db(force: bool = False) -> None:
+def build_db(force: bool = False, data: bool = True) -> None:
     Settings.ensure_dirs()
     if force and os.path.exists(Settings.DB_PATH):
         os.remove(Settings.DB_PATH)
@@ -673,6 +673,9 @@ def build_db(force: bool = False) -> None:
             con.execute("ALTER TABLE solicitudes ADD COLUMN fecha_necesidad TEXT")
 
         _apply_migrations(con)
+        if not data:
+            con.commit()
+            return
 
         data_dir = Settings.DATA_DIR
         usuarios_csv = os.path.join(data_dir, "Usuarios.csv")

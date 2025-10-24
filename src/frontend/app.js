@@ -2909,6 +2909,9 @@ async function bootstrapIndexPage() {
     const response = await fetch("/api/usuarios/me", { credentials: "include" });
     if (response.ok) {
       console.info("[auth] token valido -> home");
+      if (window.location.pathname === "/home.html") {
+        return;
+      }
       location.replace("/home.html");
       return;
     }
@@ -2954,7 +2957,7 @@ async function login() {
   try {
     const data = await api("/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ id: username, password }),
     });
     setToken(data?.refresh_token || null);
     console.info("[auth] sesion iniciada", { usuario: data?.user?.id || username });

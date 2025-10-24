@@ -15,3 +15,6 @@ __pycache__/
 node_modules/
 dist/
 build/
+
+# Base de datos
+src/backend/data/spm.db
