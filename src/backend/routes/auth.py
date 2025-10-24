@@ -65,7 +65,7 @@ def login():
                 """,
                 (user_id,),
             )
-        row = cur.fetchone()
+            row = cur.fetchone()
 
         if not row:
             logger.debug("User '%s' not found", user_id)
