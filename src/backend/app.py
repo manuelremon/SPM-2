@@ -114,14 +114,10 @@ def create_app() -> Flask:
         return {"ok": True}
 
     # Frontend entry points
-    @app.get("/")
-    def index():
-        return app.send_static_file("index.html")
-
-    # Handy route for the single JS file
-    @app.get("/app.js")
-    def app_js():
-        return app.send_static_file("app.js")
+    @app.route("/", defaults={"path": "index.html"})
+    @app.route("/<path:path>")
+    def serve_frontend(path):
+        return app.send_static_file(path)
 
     return app
 
