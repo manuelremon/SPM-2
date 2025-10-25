@@ -31,41 +31,51 @@ def login():
     if request.method == "OPTIONS":
         return "", 204
     payload = request.get_json(silent=True) or {}
-    if Settings.DEBUG:
-        logger.debug("Login payload keys: %s", sorted(payload.keys()))
-    username = payload.get("username") or payload.get("nombre") or payload.get("id") or payload.get("usuario")
-    password = payload.get("password") or payload.get("contrasena") or payload.get("pw")
-    if isinstance(username, str):
-        username = username.strip()
-    if isinstance(password, str):
-        password = password.strip()
-    if not username or not password:
+    user_id = payload.get("id")
+    password = payload.get("password")
+
+    if not user_id or not isinstance(user_id, str) or not password or not isinstance(password, str):
+        return jsonify({"ok": False, "error": "invalid_payload"}), 400
+
+    user_id = user_id.strip()
+    password = password.strip()
+    if not user_id or not password:
         return jsonify({"ok": False, "error": "invalid_credentials"}), 401
-    if Settings.DEBUG:
-        logger.debug("Login attempt for user '%s'", username)
+
+    logger.debug("Login attempt for user '%s'", user_id)
     with get_connection() as con:
+        # Prioritize login by id_spm, then by mail
         cur = con.execute(
             """
             SELECT id_spm, nombre, apellido, rol, contrasena, sector, centros, posicion,
                    mail, telefono, id_ypf, jefe, gerente1, gerente2
               FROM usuarios
              WHERE id_spm = ? COLLATE NOCASE
-                OR mail = ? COLLATE NOCASE
-                OR nombre = ? COLLATE NOCASE
-             LIMIT 1
             """,
-            (username, username, username),
+            (user_id,),
         )
         row = cur.fetchone()
-        if Settings.DEBUG:
-            logger.debug("User lookup result for '%s': %s", username, "found" if row else "not found")
         if not row:
+             cur = con.execute(
+                """
+                SELECT id_spm, nombre, apellido, rol, contrasena, sector, centros, posicion,
+                    mail, telefono, id_ypf, jefe, gerente1, gerente2
+                FROM usuarios
+                WHERE mail = ? COLLATE NOCASE
+                """,
+                (user_id,),
+            )
+        row = cur.fetchone()
+
+        if not row:
+            logger.debug("User '%s' not found", user_id)
             return jsonify({"ok": False, "error": "invalid_credentials"}), 401
+
         valid, needs_rehash = verify_password(row["contrasena"], password)
         if not valid:
-            if Settings.DEBUG:
-                logger.debug("Password mismatch for '%s'", username)
+            logger.debug("Password mismatch for '%s'", user_id)
             return jsonify({"ok": False, "error": "invalid_credentials"}), 401
+
         if needs_rehash:
             new_hash = hash_password(password)
             con.execute("UPDATE usuarios SET contrasena = ? WHERE id_spm = ?", (new_hash, row["id_spm"]))
