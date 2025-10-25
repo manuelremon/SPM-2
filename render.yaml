@@ -3,10 +3,10 @@ services:
     name: spm-backend
     env: python
     region: oregon
-    runtime: python3.9
+    runtime: python3.12
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python src/backend/app.py
+    startCommand: gunicorn -b 0.0.0.0:$PORT wsgi:app
     autoDeploy: true
     envVars:
       - key: FLASK_ENV

@@ -1,0 +1,46 @@
+Automatico:
+  .\run-dev.bat
+
+--------------------------------------                ---------------------------------
+
+Manual reinstalando todo desde 0
+cd C:\Users\manue\Documents\GitHub\SPM-2s
+py -3.12 -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+python setup_dev_db.py
+python wsgi.py
+
+---------------------------------------                 ----------------------------------
+
+#Para levantar el backend y el frontend estático desde este repo, los pasos recomendados (Windows/PowerShell) son:
+
+Crear o regenerar el entorno virtual (una sola vez)
+
+cd C:\Users\manue\Documents\GitHub\SPM-2s
+py -3.12 -m venv .venv
+(Si ya existe .venv, podés saltar este paso).
+
+Activar el entorno y asegurarte de tener dependencias
+
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+Inicializar la base de datos de desarrollo
+
+python setup_dev_db.py
+(Esto crea/actualiza src/backend/data/spm.db con el admin por defecto y los usuarios demo que generamos).
+
+Levantar la aplicación
+
+python wsgi.py
+Esto sirve el backend Flask en http://127.0.0.1:5001/ y expone los assets estáticos (HTML, JS, CSS).
+
+Alternativa: run-dev.bat automatiza los pasos 2–4 (crea venv si falta, instala dependencias, fija PORT=5001, abre el navegador y ejecuta python src\backend\app.py). Úsalo desde la raíz del proyecto:
+
+.\run-dev.bat
+Ingresar
+Abrí http://127.0.0.1:5001/ y logueate con alguno de los usuarios:
+
+Admin original: 1 / a1
+Usuarios demo: demo_admin, demo_planner, demo_aprobador, demo_solicitante (clave a1 en todos los casos).
+Cuando quieras detener el servidor, volvé a la consola donde está corriendo python wsgi.py y presioná Ctrl+C.

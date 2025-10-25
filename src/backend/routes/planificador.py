@@ -4,26 +4,19 @@ import json
 from flask import Blueprint, request
 
 from ..db import get_connection
-from ..security import verify_access_token
+from ..security import get_request_user
+from ..roles import has_role
 
 bp = Blueprint("spm_planner_blueprint", __name__, url_prefix="/api/planificador")
 COOKIE_NAME = "spm_token"
 
 def _require_planner():
-    user = verify_access_token(request)
+    user = get_request_user(request)
     if not user:
-        return None, ({"ok": False, "error": {"code":"unauthorized","message":"Unauthorized"}}, 401)
-    uid = user.get("sub")
-    if not uid:
-        return None, ({"ok": False, "error": {"code":"unauthorized","message":"Unauthorized"}}, 401)
-    with get_connection() as con:
-        row = con.execute("SELECT rol FROM usuarios WHERE lower(id_spm)=?", (uid.lower(),)).fetchone()
-        if not row:
-            return None, ({"ok": False, "error": {"code":"forbidden","message":"Forbidden"}}, 403)
-        role = (row["rol"] or "").lower()
-        if not any(r in role for r in ["planner", "planificador", "admin", "administrador"]):
-            return None, ({"ok": False, "error": {"code":"forbidden","message":"Forbidden"}}, 403)
-    return uid, None
+        return None, ({"ok": False, "error": {"code": "unauthorized", "message": "Unauthorized"}}, 401)
+    if not has_role(user, "planner", "planificador", "admin", "administrador"):
+        return None, ({"ok": False, "error": {"code": "forbidden", "message": "Forbidden"}}, 403)
+    return user["id_spm"], None
 
 def _log_event(con, solicitud_id, planner_id, tipo, payload: dict | None = None):
     pj = json.dumps(payload or {}, ensure_ascii=False)

@@ -1,0 +1,30 @@
+Claro, te explico cómo integrar mis cambios en tu proyecto local de Visual Studio Code.
+
+Mis cambios están en una rama separada en el repositorio. Para aplicarlos, solo necesitas hacer un "pull" de esa rama. Aquí tienes los pasos detallados:
+
+Pasos para actualizar tu proyecto en VS Code
+Abre una terminal en Visual Studio Code. Puedes hacerlo desde el menú superior: Terminal -> New Terminal.
+
+Asegúrate de no tener cambios locales sin guardar. Puedes ver el estado de tus archivos en el panel de Source Control (el icono de la bifurcación a la izquierda). Si tienes cambios, puedes guardarlos con git stash o descartarlos si no son importantes.
+
+Obtén las últimas ramas del repositorio. En la terminal, ejecuta este comando para descargar la información de todas las ramas remotas, incluyendo la mía:
+
+git fetch origin
+Cambia a mi rama. Mi rama se llama jules/stabilize-app. Para empezar a usarla, ejecuta:
+
+git checkout jules/stabilize-app
+Al hacer esto, verás que los archivos de tu proyecto se actualizan automáticamente con todos los cambios que he realizado, incluyendo el nuevo script setup_dev_db.py.
+
+Ejecuta el script de configuración de la base de datos. Ahora que tienes los archivos actualizados, ejecuta el script que te preparé para inicializar la base de datos:
+
+python setup_dev_db.py
+Inicia el servidor. Una vez que la base de datos esté lista, puedes iniciar la aplicación. Si tienes una configuración de launch.json en VS Code para ejecutar wsgi.py, puedes usarla. Si no, simplemente ejecuta en la terminal:
+
+python wsgi.py
+¡Listo para iniciar sesión! Abre el navegador en http://127.0.0.1:5001 y ya deberías poder iniciar sesión con:
+
+Usuario: 1
+Contraseña: a1
+Con eso, tu entorno local estará completamente actualizado y funcional. Si en algún momento quieres volver a tu rama anterior, solo tienes que usar git checkout nombre-de-tu-rama.
+
+Avísame si te surge cualquier duda durante el proceso.

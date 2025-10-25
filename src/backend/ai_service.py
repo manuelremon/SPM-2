@@ -24,37 +24,67 @@ class AIService:
     def get_suggestions_for_solicitud(self, solicitud_id: int) -> List[Dict[str, Any]]:
         """Genera sugerencias IA para todos los ítems de una solicitud."""
         with get_connection() as con:
-            # Obtener solicitud e ítems
             sol_row = con.execute(
-                "SELECT id, centro_solicitante, criticidad, fecha_necesidad FROM solicitudes WHERE id = ?",
-                (solicitud_id,)
+                "SELECT id, centro, criticidad, fecha_necesidad, data_json FROM solicitudes WHERE id = ?",
+                (solicitud_id,),
             ).fetchone()
             if not sol_row:
-                return []
+                return None
 
-            items = con.execute(
-                "SELECT item_index, material, um, cantidad, precio_unitario_est FROM solicitud_items WHERE solicitud_id = ?",
-                (solicitud_id,)
-            ).fetchall()
+            try:
+                raw_payload = json.loads(sol_row["data_json"] or "{}")
+            except (TypeError, json.JSONDecodeError):
+                raw_payload = {}
+            raw_items = raw_payload.get("items") or []
 
-            suggestions = []
+            items: List[Dict[str, Any]] = []
+            for idx, raw in enumerate(raw_items):
+                if not isinstance(raw, dict):
+                    continue
+                material = str(raw.get("codigo") or "").strip()
+                if not material:
+                    continue
+                cantidad_raw = raw.get("cantidad", 0)
+                try:
+                    cantidad_val = float(cantidad_raw)
+                except (TypeError, ValueError):
+                    cantidad_val = 0.0
+                items.append(
+                    {
+                        "item_index": idx,
+                        "material": material,
+                        "um": (raw.get("unidad") or raw.get("unidad_medida") or raw.get("um")),
+                        "cantidad": cantidad_val,
+                        "precio_unitario_est": raw.get("precio_unitario"),
+                        "descripcion": raw.get("descripcion"),
+                    }
+                )
+
+            suggestions: List[Dict[str, Any]] = []
+            sol_meta = dict(sol_row)
             for item in items:
-                item_sugs = self._get_suggestions_for_item(con, solicitud_id, sol_row, item)
+                item_sugs = self._get_suggestions_for_item(con, solicitud_id, sol_meta, item)
                 suggestions.extend(item_sugs)
 
             return suggestions
 
-    def _get_suggestions_for_item(self, con: sqlite3.Connection, solicitud_id: int, sol_row: sqlite3.Row, item: sqlite3.Row) -> List[Dict[str, Any]]:
+    def _get_suggestions_for_item(
+        self,
+        con: sqlite3.Connection,
+        solicitud_id: int,
+        sol_row: Dict[str, Any],
+        item: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
         """Genera sugerencias para un ítem específico."""
         suggestions = []
 
         # Stock split
-        stock_sug = self._suggest_stock_split(con, item, sol_row["centro_solicitante"])
+        stock_sug = self._suggest_stock_split(con, item, sol_row.get("centro"))
         if stock_sug:
             suggestions.append(stock_sug)
 
         # Equivalentes
-        equiv_sugs = self._suggest_equivalentes(con, item["material"], item["um"])
+        equiv_sugs = self._suggest_equivalentes(con, item["material"], item.get("um"))
         suggestions.extend(equiv_sugs[:Settings.AI_MAX_SUGGESTIONS])
 
         # Proveedor
@@ -68,7 +98,7 @@ class AIService:
             suggestions.append(price_sug)
 
         # Lead time
-        lt_sug = self._suggest_leadtime(con, item["material"], sol_row["centro_solicitante"])
+        lt_sug = self._suggest_leadtime(con, item["material"], sol_row.get("centro"))
         if lt_sug:
             suggestions.append(lt_sug)
 
@@ -84,17 +114,27 @@ class AIService:
 
         return suggestions
 
-    def _suggest_stock_split(self, con: sqlite3.Connection, item: sqlite3.Row, centro: str) -> Optional[Dict[str, Any]]:
+    def _suggest_stock_split(
+        self,
+        con: sqlite3.Connection,
+        item: Dict[str, Any],
+        centro: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
         """Sugiere split stock/compra basado en stock disponible."""
         # Simular stock_disponible - en realidad, necesitarías una tabla stock_disponible
         # Por ahora, asumir stock aleatorio para demo
         import random
-        stock_total = random.randint(0, int(item["cantidad"]) * 2)
+        try:
+            cantidad = max(0, float(item.get("cantidad", 0)))
+        except (TypeError, ValueError):
+            cantidad = 0.0
+        max_stock = int(max(cantidad, 0))
+        stock_total = random.randint(0, max_stock * 2 if max_stock else 0)
         if stock_total == 0:
             return None
 
-        stock_qty = min(item["cantidad"], stock_total)
-        compra_qty = item["cantidad"] - stock_qty
+        stock_qty = min(cantidad, stock_total)
+        compra_qty = max(0.0, cantidad - stock_qty)
 
         if compra_qty > 0:
             payload = {
@@ -116,10 +156,15 @@ class AIService:
             }]
         }
 
-    def _suggest_equivalentes(self, con: sqlite3.Connection, material: str, um: str) -> List[Dict[str, Any]]:
+    def _suggest_equivalentes(
+        self,
+        con: sqlite3.Connection,
+        material: str,
+        um: Optional[str],
+    ) -> List[Dict[str, Any]]:
         """Sugiere materiales equivalentes usando TF-IDF."""
         materiales = con.execute(
-            "SELECT codigo, descripcion, descripcion_larga, unidad_medida, precio_usd FROM materiales WHERE activo = 1"
+            "SELECT codigo, descripcion, descripcion_larga, unidad, precio_usd FROM materiales"
         ).fetchall()
 
         if not materiales:
@@ -132,7 +177,10 @@ class AIService:
             with open(self.materiales_cache, 'rb') as f:
                 mat_list = pickle.load(f)
         else:
-            mat_list = [f"{m['descripcion']} {m['descripcion_larga']}" for m in materiales]
+            mat_list = [
+                f"{m['descripcion']} {m['descripcion_larga'] or ''}".strip()
+                for m in materiales
+            ]
             vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
             tfidf_matrix = vectorizer.fit_transform(mat_list)
             with open(self.tfidf_cache, 'wb') as f:
@@ -141,7 +189,14 @@ class AIService:
                 pickle.dump(mat_list, f)
 
         # Buscar material actual
-        target_desc = next((f"{m['descripcion']} {m['descripcion_larga']}" for m in materiales if m['codigo'] == material), "")
+        target_desc = next(
+            (
+                f"{m['descripcion']} {m['descripcion_larga'] or ''}".strip()
+                for m in materiales
+                if m['codigo'] == material
+            ),
+            "",
+        )
         if not target_desc:
             return []
 
@@ -154,7 +209,10 @@ class AIService:
         suggestions = []
         for idx in top_indices:
             mat = materiales[idx]
-            if mat['codigo'] == material or mat['unidad_medida'] != um:
+            unidad = mat['unidad']
+            if mat['codigo'] == material:
+                continue
+            if um and unidad and unidad != um:
                 continue
             sim = similarities[idx]
             if sim < 0.5:  # umbral mínimo
@@ -162,8 +220,8 @@ class AIService:
             suggestions.append({
                 "type": "equivalente",
                 "title": f"Equivalente: {mat['codigo']} (similaridad {sim:.2f})",
-                "payload": {"material": mat['codigo'], "unidad_medida": mat['unidad_medida']},
-                "reason": "Descripción similar (TF-IDF) y unidad compatible.",
+                "payload": {"material": mat['codigo'], "unidad_medida": unidad} if unidad else {"material": mat['codigo']},
+                "reason": "Descripción similar (TF-IDF) y unidad compatible." if unidad else "Descripción similar (TF-IDF).",
                 "confidence": min(sim, 0.9),
                 "sources": ["materiales"]
             })
@@ -224,23 +282,30 @@ class AIService:
             "sources": ["purchase_orders", "stock_disponible", "materiales"]
         }
 
-    def _suggest_leadtime(self, con: sqlite3.Connection, material: str, centro: str) -> Optional[Dict[str, Any]]:
-        """Sugiere lead time basado en heurísticas."""
-        # Heurística simple
+    def _suggest_leadtime(
+        self,
+        con: sqlite3.Connection,
+        material: str,
+        centro: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Sugiere lead time basado en heur?sticas simples."""
         min_days, max_days = 7, 15  # nacional
-        # Si hay histórico de traslados, usar mediana
-        # Por ahora, heurística
 
         return {
             "type": "leadtime",
-            "title": f"Lead time estimado: {min_days}–{max_days} días",
+            "title": f"Lead time estimado: {min_days}-{max_days} d?as",
             "payload": {"min": min_days, "max": max_days},
-            "reason": "Proveedor nacional; histórico similar.",
+            "reason": "Proveedor nacional; hist?rico similar.",
             "confidence": 0.6,
-            "sources": ["purchase_orders", "traslados"]
+            "sources": ["purchase_orders", "traslados"],
         }
-
-    def _suggest_sla_risk(self, con: sqlite3.Connection, solicitud_id: int, sol_row: sqlite3.Row, item: sqlite3.Row) -> Optional[Dict[str, Any]]:
+    def _suggest_sla_risk(
+        self,
+        con: sqlite3.Connection,
+        solicitud_id: int,
+        sol_row: Dict[str, Any],
+        item: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
         """Sugiere riesgo SLA."""
         # Lógica simplificada
         criticidad = sol_row["criticidad"] or "Normal"
@@ -258,10 +323,21 @@ class AIService:
             "sources": ["sla_rules", "solicitud_tratamiento_log"]
         }
 
-    def _suggest_texto_justif(self, con: sqlite3.Connection, item: sqlite3.Row, suggestions: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _suggest_texto_justif(
+        self,
+        con: sqlite3.Connection,
+        item: Dict[str, Any],
+        suggestions: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
         """Genera texto de justificación basado en otras sugerencias."""
         # Resumir
-        texto = f"Se propone adquirir {item['cantidad']} {item['um']} del material {item['material']}."
+        cantidad = item.get("cantidad", 0)
+        um = (item.get("um") or "").strip()
+        material = item.get("material", "")
+        base = f"Se propone adquirir {cantidad}"
+        if um:
+            base += f" {um}"
+        texto = f"{base} del material {material}."
 
         for sug in suggestions:
             if sug["type"] == "stock_split":

@@ -45,7 +45,7 @@ def login():
     logger.debug("Login attempt for user '%s'", user_id)
     with get_connection() as con:
         # Prioritize login by id_spm, then by mail
-        cur = con.execute(
+        row = con.execute(
             """
             SELECT id_spm, nombre, apellido, rol, contrasena, sector, centros, posicion,
                    mail, telefono, id_ypf, jefe, gerente1, gerente2
@@ -53,19 +53,17 @@ def login():
              WHERE id_spm = ? COLLATE NOCASE
             """,
             (user_id,),
-        )
-        row = cur.fetchone()
+        ).fetchone()
         if not row:
-             cur = con.execute(
+            row = con.execute(
                 """
                 SELECT id_spm, nombre, apellido, rol, contrasena, sector, centros, posicion,
-                    mail, telefono, id_ypf, jefe, gerente1, gerente2
-                FROM usuarios
-                WHERE mail = ? COLLATE NOCASE
+                       mail, telefono, id_ypf, jefe, gerente1, gerente2
+                  FROM usuarios
+                 WHERE mail = ? COLLATE NOCASE
                 """,
                 (user_id,),
-            )
-        row = cur.fetchone()
+            ).fetchone()
 
         if not row:
             logger.debug("User '%s' not found", user_id)
