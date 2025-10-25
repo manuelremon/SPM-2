@@ -3,7 +3,7 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request
 
 from ..ai_service import AIService
-from ..security import verify_access_token
+from ..security import get_request_user
 from ..roles import has_role
 
 bp = Blueprint("ai", __name__, url_prefix="/api/ai")
@@ -13,22 +13,21 @@ ai_service = AIService()
 @bp.route("/suggest/solicitud/<int:sol_id>", methods=["GET"])
 def get_suggestions(sol_id: int):
     """Obtiene sugerencias IA para una solicitud."""
-    user = verify_access_token(request)
+    user = get_request_user(request)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
     if not has_role(user, "planner", "planificador", "admin", "administrador"):
         return jsonify({"error": "Forbidden"}), 403
-    
-    if not AIService().get_suggestions_for_solicitud(sol_id):
-        return jsonify({"error": "Solicitud no encontrada"}), 404
 
     suggestions = ai_service.get_suggestions_for_solicitud(sol_id)
+    if suggestions is None:
+        return jsonify({"error": "Solicitud no encontrada"}), 404
     return jsonify({"suggestions": suggestions})
 
 @bp.route("/suggest/accept", methods=["POST"])
 def accept_suggestion():
     """Acepta una sugerencia IA."""
-    user = verify_access_token(request)
+    user = get_request_user(request)
     if not user:
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
     if not has_role(user, "planner", "planificador", "admin", "administrador"):
@@ -55,7 +54,7 @@ def accept_suggestion():
 @bp.route("/suggest/reject", methods=["POST"])
 def reject_suggestion():
     """Rechaza una sugerencia IA."""
-    user = verify_access_token(request)
+    user = get_request_user(request)
     if not user:
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
     if not has_role(user, "planner", "planificador", "admin", "administrador"):

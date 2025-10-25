@@ -1,0 +1,6 @@
+.venv
+__pycache__/
+.git
+src/backend/data/spm.db
+src/backend/data/ai_cache/
+server.log

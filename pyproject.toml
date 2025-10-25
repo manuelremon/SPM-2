@@ -9,6 +9,6 @@ exclude = ["build", "dist", ".venv"]
 extend-select = ["I"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "."]
 python_files = ["test_*.py"]
 addopts = "-ra"

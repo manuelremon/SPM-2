@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from flask import Blueprint, request, jsonify
 from ..db import get_connection
-from ..security import verify_access_token
+from ..security import get_request_user
 from ..roles import has_role
 from ..schemas import (
     TrasladoCreate, TrasladoUpdate, SolpedCreate, SolpedUpdate,
@@ -13,19 +13,21 @@ from ..schemas import (
 bp = Blueprint("abastecimiento", __name__, url_prefix="/api/abastecimiento")
 
 def _require_planner():
-    user = verify_access_token(request)
+    user = get_request_user(request)
     if not user:
         return None, ({"ok": False, "error": {"code": "unauthorized", "message": "Unauthorized"}}, 401)
     if not has_role(user, "planner", "planificador", "admin", "administrador"):
         return None, ({"ok": False, "error": {"code": "forbidden", "message": "Forbidden"}}, 403)
+    user.setdefault("uid", user.get("id_spm"))
     return user, None
 
 def _require_admin():
-    user = verify_access_token(request)
+    user = get_request_user(request)
     if not user:
         return None, ({"ok": False, "error": {"code": "unauthorized", "message": "Unauthorized"}}, 401)
     if not has_role(user, "planner", "planificador", "admin", "administrador"):
         return None, ({"ok": False, "error": {"code": "forbidden", "message": "Forbidden"}}, 403)
+    user.setdefault("uid", user.get("id_spm"))
     return user, None
 
 def _log(con, sol_id, uid, tipo, item_index=None, estado=None, payload=None):
