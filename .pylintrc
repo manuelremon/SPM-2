@@ -1,0 +1,21 @@
+[MASTER]
+ignore=.venv
+extension-pkg-whitelist=
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    duplicate-code,
+    wrong-import-order,
+    no-member
+
+[FORMAT]
+max-line-length=220
+
+[BASIC]
+good-names=i,j,k,ex,Run,_
+
+[TYPECHECK]
+ignored-modules=dotenv,fastapi,httpx,agent.models,agent.catalog,agent.rules,agent.llm
