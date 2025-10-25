@@ -10,11 +10,11 @@ print("Setting up the development database...")
 data_dir = os.path.join(os.path.dirname(__file__), 'src', 'backend', 'data')
 os.makedirs(data_dir, exist_ok=True)
 
-# 1. Create database schema without loading all the CSV data
-print("Step 1: Creating database schema...")
+# 1. Create database schema and load catalog data
+print("Step 1: Creating database schema and loading catalogs...")
 try:
-    build_db(force=True, data=False)
-    print("Schema created successfully.")
+    build_db(force=True, data=True)
+    print("Schema and catalog data loaded successfully.")
 except Exception as e:
     print(f"Error creating schema: {e}")
     exit(1)

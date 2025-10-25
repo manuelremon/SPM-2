@@ -1,4 +1,4 @@
-// para evitar problemas de CSP/CORS cuando se sirve tras Nginx.
+﻿// para evitar problemas de CSP/CORS cuando se sirve tras Nginx.
 console.debug("[SPM] app.js loaded");
 function showFatal(message, details = "") {
   try {
@@ -123,7 +123,7 @@ function clearToken() {
 
 function renderLogin(root) {
   if (!root) {
-    showFatal("No se encontro el contenedor principal", "#app missing");
+    showFatal("No se encontró el contenedor principal", "#app missing");
     return;
   }
   document.body?.classList.add("auth-body");
@@ -424,21 +424,21 @@ function escapeHtml(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "�";
+  if (!value) return "ï¿½";
   const normalised = typeof value === "string" ? value.replace("T", " ") : value;
   const date = new Date(normalised);
   if (Number.isNaN(date.getTime())) {
-    return typeof value === "string" ? value : "�";
+    return typeof value === "string" ? value : "ï¿½";
   }
   return date.toLocaleString();
 }
 
 function formatDateOnly(value) {
-  if (!value) return "�";
+  if (!value) return "ï¿½";
   const normalised = typeof value === "string" ? value.replace("T", " ") : value;
   const date = new Date(normalised);
   if (Number.isNaN(date.getTime())) {
-    return typeof value === "string" ? value : "�";
+    return typeof value === "string" ? value : "ï¿½";
   }
   return date.toLocaleDateString();
 }
@@ -840,6 +840,25 @@ function setupGlobalNavActions() {
       help();
     });
     helpBtn.dataset.bound = "1";
+  }
+
+  const logoutBtn = document.getElementById("menuCerrarSesion");
+  if (logoutBtn && logoutBtn.dataset.bound !== "1") {
+    logoutBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      if (state.logoutInFlight) {
+        return;
+      }
+      state.logoutInFlight = true;
+      logoutBtn.classList.add("is-loading");
+      try {
+        await logout();
+      } finally {
+        state.logoutInFlight = false;
+        logoutBtn.classList.remove("is-loading");
+      }
+    });
+    logoutBtn.dataset.bound = "1";
   }
 }
 
@@ -1773,7 +1792,7 @@ function clearAllStoredFilters() {
 
 function statusBadge(status) {
   const normalized = (status || "").toLowerCase();
-  const fallback = normalized ? normalized.replace(/_/g, " ") : "�";
+  const fallback = normalized ? normalized.replace(/_/g, " ") : "ï¿½";
   const label = STATUS_LABELS[normalized] || fallback;
   const pretty = STATUS_LABELS[normalized]
     ? label
@@ -1781,7 +1800,7 @@ function statusBadge(status) {
   return `<span class="status-pill status-${normalized || "desconocido"}">${pretty}</span>`;
 }
 
-const DEFAULT_CENTROS = ["1008", "1050", "1500"];
+const DEFAULT_CENTROS = ["1008", "1050", "1064", "1500", "1501", "1502"];
 
 const MATERIAL_SUGGESTION_LIMIT = 100000;
 
@@ -1970,7 +1989,7 @@ function buildAlmacenOptions() {
     if (!item) {
       return;
     }
-    const codigo = (item.codigo || item.id || "").trim();
+    const codigo = (item.codigo || item.id || item.id_almacen || "").trim();
     if (!codigo) {
       return;
     }
@@ -2001,7 +2020,7 @@ function populateCentroSelect() {
   const select = document.getElementById("centro");
   if (!select) return;
   const options = buildCentroOptions();
-  renderSelectOptions(select, options, { placeholder: "Seleccion? un centro" });
+  renderSelectOptions(select, options, { placeholder: "Seleccione un centro" });
 }
 
 async function cargarAlmacenes(centro) {
@@ -2023,12 +2042,12 @@ async function cargarAlmacenes(centro) {
   if (!sel) {
     return;
   }
-  sel.innerHTML = '<option value="">Seleccion? un almac?n</option>';
+  sel.innerHTML = '<option value="">Seleccione un almac&eacute;n</option>';
   data.forEach((a) => {
     if (!a) {
       return;
     }
-    const id = `${a.id_almacen ?? ""}`.trim();
+    const id = `${a.codigo ?? a.id ?? a.id_almacen ?? ""}`.trim();
     if (!id) {
       return;
     }
@@ -2042,15 +2061,12 @@ async function cargarAlmacenes(centro) {
 }
 async function initCreateSolicitudPage() {
   await loadCatalogData();
-  populateCentroSelect();
-
   const centroEl = document.getElementById("centro");
   const almacenEl = document.getElementById("almacen");
-  if (almacenEl) {
-    almacenEl.innerHTML = '<option value="">Seleccion? un almac?n</option>';
+  hydrateCreateSolicitudForm();
+  if (almacenEl && !almacenEl.options.length) {
+    almacenEl.innerHTML = '<option value="">Seleccione un almac&eacute;n</option>';
   }
-  const initialCentro = centroEl?.value?.trim();
-  await cargarAlmacenes(initialCentro);
 
   centroEl?.addEventListener("change", (event) => {
     const value = event.target?.value?.trim();
@@ -2066,13 +2082,23 @@ async function initCreateSolicitudPage() {
       const almacen = document.getElementById("almacen")?.value;
       const centroDeCostos = document.getElementById("centroDeCostos")?.value;
       const criticidad = document.getElementById("criticidad")?.value;
-      const fechaNecesidad = document.getElementById("fechaNecesidad")?.value;
-      const sector = document.getElementById("sector")?.value || state.me?.sector;
+      const fechaInput = document.getElementById("fechaNecesidad");
+      const fechaNecesidad = fechaInput?.value || new Date().toISOString().split("T")[0];
+      if (fechaInput && !fechaInput.value) {
+        fechaInput.value = fechaNecesidad;
+      }
+      const sectorInput = document.getElementById("sector");
+      const sector = sectorInput?.value || state.me?.sector || "";
       const just = document.getElementById("just")?.value;
 
-      // Basic validation
-      if (!centro || !almacen || !just.trim()) {
-        toast("Complet? los campos obligatorios: Centro, Almac?n y Justificaci?n");
+      const missing = [];
+      if (!centro) missing.push("Centro");
+      if (!almacen) missing.push("Almac\u00E9n");
+      if (!centroDeCostos?.trim()) missing.push("Objeto de imputaci\u00F3n");
+      if (!sector?.trim()) missing.push("Sector");
+      if (!just?.trim()) missing.push("Justificaci\u00F3n");
+      if (missing.length) {
+        toast(`Complete los campos obligatorios: ${missing.join(", ")}`);
         return;
       }
 
@@ -2085,6 +2111,7 @@ async function initCreateSolicitudPage() {
         fecha_necesidad: fechaNecesidad,
         sector,
         justificacion: just,
+        attachments: cloneAttachments(state.formAttachments),
       });
 
       // Navigate to add materials page
@@ -2144,7 +2171,7 @@ async function initAddMaterialsPage() {
   }
 }
 
-function renderSelectOptions(select, options, { placeholder = "Seleccion? una opci?n", value = "" } = {}) {
+function renderSelectOptions(select, options, { placeholder = "Seleccione una opcion", value = "" } = {}) {
   if (!select) {
     return;
   }
@@ -2153,10 +2180,7 @@ function renderSelectOptions(select, options, { placeholder = "Seleccion? una op
     ? `<option value="" disabled${value ? "" : " selected"}>${escapeHtml(placeholder)}</option>`
     : "";
   const optionsHtml = safeOptions
-    .map(
-      (option) =>
-        `<option value="${escapeHtml(option.value || "")}">${escapeHtml(option.label || option.value || "")}</option>`
-    )
+    .map((option) => `<option value="${escapeHtml(option.value || "")}">${escapeHtml(option.label || option.value || "")}</option>`)
     .join("");
   select.innerHTML = `${placeholderOption}${optionsHtml}`;
   if (value && safeOptions.some((option) => option.value === value)) {
@@ -2167,7 +2191,21 @@ function renderSelectOptions(select, options, { placeholder = "Seleccion? una op
   select.disabled = !safeOptions.length;
 }
 
+
 const CHAT_HISTORY_LIMIT = 12;
+const ALLOWED_FILE_EXTENSIONS = new Set([
+  "txt",
+  "pdf",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "csv",
+]);
 
 function parseCentrosList(value) {
   if (!value) return [];
@@ -2210,7 +2248,7 @@ function renderCart(items) {
     tr.innerHTML = `
       <td>${item.codigo}</td>
       <td>${item.descripcion || ""}</td>
-      <td>${item.unidad || "�"}</td>
+      <td>${item.unidad || "ï¿½"}</td>
       <td>${formatCurrency(precio)}</td>
       <td><input type="number" min="1" value="${cantidad}" data-index="${index}" class="qty-input"></td>
       <td>${formatCurrency(subtotal)}</td>
@@ -2296,6 +2334,7 @@ const state = {
     unread: 0,
     admin: null,
   },
+  formAttachments: [],
   admin: {
     selectedMaterial: null,
     users: [],
@@ -2688,9 +2727,9 @@ function renderNotificationsPage(data) {
         const monto = Number(row.total_monto || 0);
         tr.innerHTML = `
           <td>#${row.id}</td>
-          <td>${escapeHtml(row.centro || "�")}</td>
-          <td>${escapeHtml(row.sector || "�")}</td>
-          <td>${escapeHtml(row.justificacion || "�")}</td>
+          <td>${escapeHtml(row.centro || "ï¿½")}</td>
+          <td>${escapeHtml(row.sector || "ï¿½")}</td>
+          <td>${escapeHtml(row.justificacion || "ï¿½")}</td>
           <td data-sort="${monto}">${formatCurrency(monto)}</td>
           <td data-sort="${row.created_at || ""}">${createdAt}</td>
           <td class="pending-actions">
@@ -2892,10 +2931,186 @@ function persistDraftState() {
   setDraft(draft);
 }
 
+function cloneAttachments(list) {
+  return Array.isArray(list) ? list.map((att) => ({ ...att })) : [];
+}
+
+function persistDraftAttachments() {
+  const draft = getDraft() || {
+    id: null,
+    header: {},
+    items: cloneItems(state.items),
+    user: currentUserId() || null,
+  };
+  draft.header = {
+    ...(draft.header || {}),
+    attachments: cloneAttachments(state.formAttachments),
+  };
+  setDraft(draft);
+}
+
+function formatFileSize(size) {
+  if (!Number.isFinite(size) || size <= 0) return "0 KB";
+  const kb = size / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+function allowedAttachment(filename) {
+  if (!filename || !filename.includes(".")) return false;
+  const ext = filename.split(".").pop().toLowerCase();
+  return ALLOWED_FILE_EXTENSIONS.has(ext);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAttachmentList() {
+  const wrapper = document.getElementById("archivosAdjuntos");
+  const list = document.getElementById("listaArchivos");
+  if (!wrapper || !list) return;
+  const attachments = Array.isArray(state.formAttachments) ? state.formAttachments : [];
+  if (!attachments.length) {
+    wrapper.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+  wrapper.style.display = "block";
+  list.innerHTML = attachments
+    .map(
+      (att, index) => `
+        <div class="archivo-item">
+          <span class="archivo-nombre">${escapeHtml(att.name)}</span>
+          <span class="archivo-peso">${formatFileSize(att.size)}</span>
+          <button type="button" class="btn-icon" data-remove-attachment="${index}" aria-label="Eliminar archivo">
+            ${ICONS.close}
+          </button>
+        </div>
+      `
+    )
+    .join("");
+  list.querySelectorAll("[data-remove-attachment]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const idx = Number(btn.dataset.removeAttachment);
+      if (Number.isFinite(idx)) {
+        state.formAttachments.splice(idx, 1);
+        persistDraftAttachments();
+        renderAttachmentList();
+      }
+    });
+  });
+}
+
+async function handleAttachmentSelection(event) {
+  const files = Array.from(event.target?.files || []);
+  if (!files.length) return;
+  const newAttachments = [];
+  for (const file of files) {
+    if (!allowedAttachment(file.name)) {
+      toast(`El archivo "${file.name}" no tiene una extensiÃ³n permitida`);
+      continue;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      newAttachments.push({
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size || 0,
+        dataUrl,
+        addedAt: Date.now(),
+      });
+    } catch (error) {
+      console.error("Error leyendo archivo", error);
+      toast(`No se pudo leer el archivo "${file.name}"`);
+    }
+  }
+  if (!newAttachments.length) {
+    event.target.value = "";
+    return;
+  }
+  state.formAttachments = [...(state.formAttachments || []), ...newAttachments];
+  persistDraftAttachments();
+  renderAttachmentList();
+  event.target.value = "";
+}
+
+function initAttachmentControls() {
+  const trigger = document.getElementById("btnAdjuntar");
+  const input = document.getElementById("fileInput");
+  if (!trigger || !input) return;
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    input.click();
+  });
+  input.addEventListener("change", handleAttachmentSelection);
+  renderAttachmentList();
+}
+
+function hydrateCreateSolicitudForm() {
+  const draft = getDraft();
+  const header = draft?.header || {};
+  state.formAttachments = Array.isArray(header.attachments) ? header.attachments : [];
+
+  const sectorInput = document.getElementById("sector");
+  if (sectorInput) {
+    sectorInput.value = header.sector || state.me?.sector || "";
+  }
+
+  const centroOptions = buildCentroOptions();
+  const centroDefault = header.centro || centroOptions[0]?.value || DEFAULT_CENTROS[0] || "";
+  const centroEl = document.getElementById("centro");
+  if (centroEl) {
+    renderSelectOptions(centroEl, centroOptions, {
+      placeholder: "Seleccione un centro",
+      value: centroDefault,
+    });
+  }
+
+  const fechaEl = document.getElementById("fechaNecesidad");
+  const fechaDefault = header.fecha_necesidad || new Date().toISOString().split("T")[0];
+  if (fechaEl) {
+    fechaEl.value = fechaDefault;
+  }
+
+  const criticidadEl = document.getElementById("criticidad");
+  if (criticidadEl && header.criticidad) {
+    criticidadEl.value = header.criticidad;
+  }
+
+  const costoInput = document.getElementById("centroDeCostos");
+  if (costoInput) {
+    costoInput.value = header.centro_costos || "";
+  }
+
+  const justInput = document.getElementById("just");
+  if (justInput) {
+    justInput.value = header.justificacion || "";
+  }
+
+  cargarAlmacenes(centroDefault).then(() => {
+    const almacenEl = document.getElementById("almacen");
+    const almacenValue = header.almacen_virtual || getDefaultAlmacenValue();
+    if (almacenEl && almacenValue) {
+      almacenEl.value = almacenValue;
+    }
+  });
+
+  initAttachmentControls();
+  renderAttachmentList();
+}
+
+
 async function bootstrapIndexPage() {
   const root = document.getElementById("app");
   if (!root) {
-    showFatal("No se encontro el contenedor principal", "#app missing");
+    showFatal("No se encontró el contenedor principal", "#app missing");
     return;
   }
   const token = getToken();
@@ -3076,6 +3291,7 @@ async function logout() {
   state.me = null;
   updateMenuVisibility();
   state.items = [];
+  state.formAttachments = [];
   sessionStorage.removeItem("solicitudDraft");
   window.location.href = "index.html";
 }
@@ -3105,7 +3321,7 @@ async function addItem() {
         return;
       }
       if (results.length > 1) {
-        toast("Seleccion? un material de la lista sugerida");
+        toast("Seleccione un material de la lista sugerida");
         if (code) state.cache.set(`codigo:${code.toLowerCase()}`, results);
         if (desc) state.cache.set(`descripcion:${desc.toLowerCase()}`, results);
         showMaterialSuggestions(codeSuggest, results, codeSuggest, descSuggest);
@@ -3120,7 +3336,7 @@ async function addItem() {
   }
 
   if (!material) {
-    toast("Seleccion? un material v?lido");
+    toast("Seleccione un material válido");
     return;
   }
 
@@ -3202,7 +3418,7 @@ async function recreateDraft(latestDraft, latestUserId) {
 async function saveDraft(isRetry = false) {
   const latestDraft = getDraft();
   if (!latestDraft || !latestDraft.header) {
-    toast("No se encontr? el encabezado de la solicitud");
+    toast("No se encontró el encabezado de la solicitud");
     return;
   }
   const latestUserId = currentUserId();
@@ -3213,8 +3429,8 @@ async function saveDraft(isRetry = false) {
   const almacenVirtual =
   latestDraft.header.almacen_virtual || getDefaultAlmacenValue() || "";
   if (!almacenVirtual) {
-    toast("Seleccion? un almac?n virtual en el paso anterior");
-    return;
+    toast("Seleccione un almacén virtual en el paso anterior");
+    toast("Seleccione un almac\u00E9n virtual en el paso anterior");
   }
   const criticidad = latestDraft.header.criticidad || "Normal";
   const fechaNecesidad =
@@ -3273,11 +3489,11 @@ async function saveDraft(isRetry = false) {
 async function sendSolicitud() {
   const latestDraft = getDraft();
   if (!latestDraft || !latestDraft.header) {
-    toast("No se encontr? el encabezado de la solicitud");
+    toast("No se encontró el encabezado de la solicitud");
     return;
   }
   if (!state.items || !state.items.length) {
-    toast("Agreg? al menos un material a la solicitud");
+    toast("Agregue al menos un material a la solicitud");
     return;
   }
   const latestUserId = currentUserId();
@@ -3288,8 +3504,8 @@ async function sendSolicitud() {
   const almacenVirtual =
     latestDraft.header.almacen_virtual || getDefaultAlmacenValue() || "";
   if (!almacenVirtual) {
-    toast("Seleccion? un almac?n virtual en el paso anterior");
-    return;
+    toast("Seleccione un almacén virtual en el paso anterior");
+    toast("Seleccione un almac\u00E9n virtual en el paso anterior");
   }
   const criticidad = latestDraft.header.criticidad || "Normal";
   const fechaNecesidad =
@@ -3319,17 +3535,67 @@ async function sendSolicitud() {
       method: "POST",
       body: JSON.stringify(body),
     });
+    const solicitudId = resp?.id;
+    if (solicitudId && state.formAttachments?.length) {
+      await uploadDraftAttachments(solicitudId);
+    }
     // Clear draft
     sessionStorage.removeItem("solicitudDraft");
     state.items = [];
+    state.formAttachments = [];
     toast("Solicitud enviada correctamente", true);
-    // Redirect to home or mis-solicitudes
+    // Redirect to home o mis-solicitudes
     window.location.href = "mis-solicitudes.html";
   } catch (err) {
     toast(err.message);
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+async function uploadDraftAttachments(solicitudId) {
+  const attachments = Array.isArray(state.formAttachments) ? state.formAttachments : [];
+  for (const attachment of attachments) {
+    try {
+      const blob = dataUrlToBlob(attachment.dataUrl);
+      const file = new File([blob], attachment.name, {
+        type: attachment.type || "application/octet-stream",
+      });
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`/api/archivos/upload/${solicitudId}`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!response.ok) {
+        console.warn("No se pudo adjuntar archivo", attachment.name, response.status);
+      }
+    } catch (error) {
+      console.error("Error subiendo archivo", attachment.name, error);
+    }
+  }
+}
+
+function dataUrlToBlob(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== "string") {
+    return new Blob();
+  }
+  const parts = dataUrl.split(",");
+  if (parts.length < 2) {
+    return new Blob();
+  }
+  const meta = parts[0];
+  const base64 = parts[1];
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const mimeMatch = meta.match(/data:(.*?);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+  return new Blob([bytes], { type: mime });
 }
 
 function renderSolicitudDetail(detail) {
@@ -3353,14 +3619,14 @@ function renderSolicitudDetail(detail) {
 
   idEl.textContent = `#${detail.id}`;
   statusEl.innerHTML = statusBadge(detail.status);
-  centroEl.textContent = detail.centro || "�";
-  sectorEl.textContent = detail.sector || "�";
-  centroCostosEl.textContent = detail.centro_costos || "�";
+  centroEl.textContent = detail.centro || "ï¿½";
+  sectorEl.textContent = detail.sector || "ï¿½";
+  centroCostosEl.textContent = detail.centro_costos || "ï¿½";
   if (almacenEl) {
-    almacenEl.textContent = detail.almacen_virtual || "�";
+    almacenEl.textContent = detail.almacen_virtual || "ï¿½";
   }
   if (criticidadEl) {
-    criticidadEl.textContent = detail.criticidad || "�";
+    criticidadEl.textContent = detail.criticidad || "ï¿½";
   }
   if (fechaEl) {
     if (detail.fecha_necesidad) {
@@ -3369,18 +3635,18 @@ function renderSolicitudDetail(detail) {
         ? detail.fecha_necesidad
         : fecha.toLocaleDateString();
     } else {
-      fechaEl.textContent = "�";
+      fechaEl.textContent = "ï¿½";
     }
   }
-  justEl.textContent = detail.justificacion || "�";
-  createdEl.textContent = detail.created_at ? new Date(detail.created_at).toLocaleString() : "�";
-  updatedEl.textContent = detail.updated_at ? new Date(detail.updated_at).toLocaleString() : "�";
+  justEl.textContent = detail.justificacion || "ï¿½";
+  createdEl.textContent = detail.created_at ? new Date(detail.created_at).toLocaleString() : "ï¿½";
+  updatedEl.textContent = detail.updated_at ? new Date(detail.updated_at).toLocaleString() : "ï¿½";
   totalEl.textContent = formatCurrency(detail.total_monto || 0);
   if (aprobadorEl) {
-    aprobadorEl.textContent = detail.aprobador_nombre || "�";
+    aprobadorEl.textContent = detail.aprobador_nombre || "ï¿½";
   }
   if (planificadorEl) {
-    planificadorEl.textContent = detail.planner_nombre || "�";
+    planificadorEl.textContent = detail.planner_nombre || "ï¿½";
   }
 
   const cancelRequest = detail.cancel_request || null;
@@ -3388,7 +3654,7 @@ function renderSolicitudDetail(detail) {
   cancelInfo.textContent = "";
   if (detail.status === "cancelada") {
     const reason = detail.cancel_reason ? `Motivo: ${detail.cancel_reason}` : "Sin motivo indicado";
-    const when = detail.cancelled_at ? ` � ${formatDateTime(detail.cancelled_at)}` : "";
+    const when = detail.cancelled_at ? ` ï¿½ ${formatDateTime(detail.cancelled_at)}` : "";
     cancelInfo.textContent = `${reason}${when}`;
     cancelInfo.classList.remove("hide");
   } else if (cancelRequest && cancelRequest.status === "pendiente") {
@@ -3414,11 +3680,11 @@ function renderSolicitudDetail(detail) {
       const cantidad = Number(item.cantidad ?? 0);
       const cantidadFmt = Number.isFinite(cantidad)
         ? cantidad.toLocaleString("es-AR")
-        : item.cantidad || "�";
+        : item.cantidad || "ï¿½";
       tr.innerHTML = `
-        <td>${item.codigo || "�"}</td>
+        <td>${item.codigo || "ï¿½"}</td>
         <td>${item.descripcion || ""}</td>
-        <td>${item.unidad || "�"}</td>
+        <td>${item.unidad || "ï¿½"}</td>
         <td>${formatCurrency(item.precio_unitario)}</td>
         <td>${cantidadFmt}</td>
         <td>${formatCurrency(item.subtotal)}</td>
@@ -3518,7 +3784,7 @@ async function requestCancelSelectedSolicitud() {
       body: JSON.stringify({ reason }),
     });
     if (response?.status === "cancelacion_pendiente") {
-      toast("Cancelaci�n enviada. pendiente de aprobaci�n del planificador.", true);
+      toast("Cancelaciï¿½n enviada. pendiente de aprobaciï¿½n del planificador.", true);
     } else {
       toast("Solicitud cancelada", true);
     }
@@ -3539,7 +3805,7 @@ async function requestCancelSelectedSolicitud() {
 function resumeDraftFromDetail() {
   const detail = state.selectedSolicitud;
   if (!detail || detail.status !== "draft") {
-    toast("Solo pod�s editar solicitudes en borrador");
+    toast("Solo podï¿½s editar solicitudes en borrador");
     return;
   }
   const userId = currentUserId();
@@ -3590,7 +3856,7 @@ function showMaterialSuggestions(container, items, codeSuggest, descSuggest) {
   items.forEach((material) => {
     const normalized = normalizeMaterial(material);
     const option = document.createElement("div");
-    option.textContent = `${normalized.codigo} � ${normalized.descripcion}`;
+    option.textContent = `${normalized.codigo} ï¿½ ${normalized.descripcion}`;
     option.onclick = () => {
       if (codeInput) codeInput.value = normalized.codigo;
       if (descInput) descInput.value = normalized.descripcion;
@@ -3658,7 +3924,7 @@ function setupMaterialSearch() {
 function openMaterialDetailModal() {
   const material = state.selected;
   if (!material || !material.descripcion_larga?.trim()) {
-    toast("Seleccion? un material con detalle disponible");
+    toast("Seleccione un material con detalle disponible");
     return;
   }
   const modal = $("#materialDetailModal");
@@ -3667,7 +3933,7 @@ function openMaterialDetailModal() {
   if (!modal || !title || !body) {
     return;
   }
-  title.textContent = `${material.codigo} � ${material.descripcion}`;
+  title.textContent = `${material.codigo} ï¿½ ${material.descripcion}`;
   body.textContent = material.descripcion_larga;
   modal.classList.remove("hide");
 }
@@ -3881,7 +4147,7 @@ const accountFieldEditor = (() => {
         toastOk("Cambios aplicados");
       } else {
         console.info("[account] solicitud enviada", { field, value: sanitizedValue });
-        toastInfo("Cambios solicitados al Administrador, ser� notificado cuando se aprueben");
+        toastInfo("Cambios solicitados al Administrador, serï¿½ notificado cuando se aprueben");
       }
       shouldClose = true;
     } catch (error) {
@@ -4089,10 +4355,10 @@ function renderAccountDetails() {
 
   const centersBtn = document.getElementById("accountRequestCenters");
   if (centersBtn) {
-    centersBtn.addEventListener("click", (event) => {
+    centersBtn.addEventListener("click", async (event) => {
       event.preventDefault();
       ensureCentersRequestModal();
-      openCentersRequestModal();
+      await openCentersRequestModal();
     });
   }
 }
@@ -4167,7 +4433,7 @@ function ensureCentersRequestModal() {
     <div class="modal-content centers-modal" role="document">
       <button type="button" class="modal-close" id="centersModalClose" aria-label="Cerrar">&times;</button>
       <h2 id="centersModalTitle">Solicitar acceso a centros</h2>
-      <p class="centers-modal__intro">Selecciona uno o mas centros disponibles y enviaremos la solicitud al equipo administrador.</p>
+      <p class="centers-modal__intro">Seleccione uno o más centros disponibles y enviaremos la solicitud al equipo administrador.</p>
       <div class="centers-modal__controls">
         <label class="centers-modal__search" for="centersModalSearch">
           <span class="sr-only">Buscar centros</span>
@@ -4301,7 +4567,12 @@ function renderCentersCascade(searchTerm = "") {
   updateCentersSelectionSummary();
 }
 
-function openCentersRequestModal() {
+async function openCentersRequestModal() {
+  try {
+    await loadCatalogData("centros", { silent: true });
+  } catch (err) {
+    console.warn("No se pudo actualizar el catÃ¡logo de centros antes de abrir el modal", err);
+  }
   const modal = ensureCentersRequestModal();
   centersRequestState.selected = new Set();
   centersRequestState.options = buildCentersRequestOptions();
@@ -4336,7 +4607,7 @@ async function submitCentersRequest() {
   }
   const count = centersRequestState.selected.size;
   if (count === 0) {
-    toast("Selecciona al menos un centro");
+    toast("Seleccione al menos un centro");
     return;
   }
   const centros = Array.from(centersRequestState.selected).join(", ");
@@ -4365,7 +4636,7 @@ async function submitCentersRequest() {
   }
 }
 
-// Funciones para gesti�n de solicitudes de perfil por administradores
+// Funciones para gestiï¿½n de solicitudes de perfil por administradores
 
 async function loadProfileRequests() {
   try {
@@ -4420,7 +4691,7 @@ function renderProfileRequests(requests) {
         </div>
         ${request.justification ? `
           <div class="justification">
-            <span class="justification-label">Justificaci�n:</span> ${request.justification}
+            <span class="justification-label">Justificaciï¿½n:</span> ${request.justification}
           </div>
         ` : ''}
       </div>
@@ -4552,8 +4823,25 @@ function initAuthPage(force = false) {
 }
 
 // Admin functions
+let adminSelectedUser = null;
+let adminOriginalUser = null;
+let adminSelectedUserId = null;
+let adminSelectedRow = null;
+let adminUsuariosFormReady = false;
+let adminUsuarioDirty = false;
+let adminUsuarioSaving = false;
+
 function initAdminUsuarios() {
+  if (!adminUsuariosFormReady) {
+    setupAdminUsuariosForm();
+    adminUsuariosFormReady = true;
+  }
   loadUsuarios();
+}
+
+function handleDeleteAccount(event) {
+  event?.preventDefault?.();
+  toast("La eliminaci\u00f3n de cuenta no est\u00e1 disponible en esta versi\u00f3n.");
 }
 
 function initAdminCentros() {
@@ -4584,10 +4872,13 @@ async function loadUsuarios() {
 
 function renderUsuarioTable(usuarios) {
   const tableBody = document.querySelector('#adminUsersTable tbody');
+  const emptyMsg = document.getElementById('adminUsersEmpty');
   if (!tableBody) return;
   
   tableBody.innerHTML = '';
+  if (emptyMsg) emptyMsg.style.display = usuarios.length ? 'none' : 'block';
   
+  let pendingSelection = null;
   usuarios.forEach(usuario => {
     const row = document.createElement('tr');
     row.innerHTML = `
@@ -4599,13 +4890,349 @@ function renderUsuarioTable(usuarios) {
       <td>${Array.isArray(usuario.centros) ? usuario.centros.join(', ') : usuario.centros || ''}</td>
       <td>${usuario.mail || ''}</td>
     `;
-    row.addEventListener('click', () => selectUsuario(usuario));
+    row.addEventListener('click', () => selectUsuario(usuario, row));
     tableBody.appendChild(row);
+
+    if (adminSelectedUserId && usuario.id === adminSelectedUserId) {
+      pendingSelection = () => selectUsuario(usuario, row, { silent: true });
+    }
   });
+
+  if (pendingSelection) {
+    pendingSelection();
+  } else if (!usuarios.length) {
+    selectUsuario(null);
+  } else if (adminSelectedUserId) {
+    // Previously selected user no longer in the list.
+    selectUsuario(null);
+  }
   
   // Update total count
   const totalEl = document.getElementById('adminUserTotal');
   if (totalEl) totalEl.textContent = `${usuarios.length} usuarios`;
+}
+
+function setupAdminUsuariosForm() {
+  const form = document.getElementById('adminUserForm');
+  if (!form) return;
+
+  const fieldIds = [
+    'adminUserMail',
+    'adminUserNombre',
+    'adminUserApellido',
+    'adminUserRol',
+    'adminUserPosicion',
+    'adminUserSector',
+    'adminUserCentros',
+    'adminUserJefe',
+    'adminUserGerente1',
+    'adminUserGerente2',
+    'adminUserPassword',
+    'adminUserPasswordConfirm',
+  ];
+
+  const onFieldChange = () => markUsuarioDirty();
+  fieldIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', onFieldChange);
+      el.addEventListener('change', onFieldChange);
+    }
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    guardarUsuarioSeleccionado();
+  });
+
+  const resetBtn = document.getElementById('adminUserReset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      restaurarUsuarioSeleccionado();
+    });
+  }
+
+  updateUsuarioButtons();
+  updateUsuarioHint();
+}
+
+function selectUsuario(usuario, row, options = {}) {
+  if (!usuario) {
+    adminSelectedUser = null;
+    adminOriginalUser = null;
+    adminSelectedUserId = null;
+    if (adminSelectedRow) {
+      adminSelectedRow.classList.remove('is-selected');
+    }
+    adminSelectedRow = null;
+    limpiarUsuarioForm();
+    adminUsuarioDirty = false;
+    updateUsuarioButtons();
+    updateUsuarioHint();
+    return;
+  }
+
+  const normalizedCentros = Array.isArray(usuario.centros)
+    ? usuario.centros.slice()
+    : typeof usuario.centros === 'string'
+      ? usuario.centros.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean)
+      : [];
+
+  adminSelectedUser = {
+    ...usuario,
+    centros: normalizedCentros,
+  };
+  adminOriginalUser = JSON.parse(JSON.stringify(adminSelectedUser));
+  adminSelectedUserId = usuario.id || null;
+
+  if (adminSelectedRow && adminSelectedRow !== row) {
+    adminSelectedRow.classList.remove('is-selected');
+  }
+  if (row) {
+    row.classList.add('is-selected');
+    adminSelectedRow = row;
+  }
+
+  rellenarUsuarioForm(adminSelectedUser);
+  adminUsuarioDirty = false;
+  updateUsuarioButtons();
+  if (!options.silent) {
+    updateUsuarioHint();
+  } else {
+    updateUsuarioHint();
+  }
+}
+
+function rellenarUsuarioForm(usuario) {
+  const setValue = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value ?? '';
+  };
+
+  setValue('adminUserId', usuario.id || '');
+  setValue('adminUserMail', usuario.mail || '');
+  setValue('adminUserNombre', usuario.nombre || '');
+  setValue('adminUserApellido', usuario.apellido || '');
+  setValue('adminUserRol', usuario.rol || '');
+  setValue('adminUserPosicion', usuario.posicion || '');
+  setValue('adminUserSector', usuario.sector || '');
+  setValue('adminUserCentros', (usuario.centros || []).join('\n'));
+  setValue('adminUserJefe', usuario.jefe || '');
+  setValue('adminUserGerente1', usuario.gerente1 || '');
+  setValue('adminUserGerente2', usuario.gerente2 || '');
+  setValue('adminUserPassword', '');
+  setValue('adminUserPasswordConfirm', '');
+
+  const titleEl = document.getElementById('adminUserTitle');
+  if (titleEl) {
+    const nameParts = [usuario.nombre, usuario.apellido].filter(Boolean);
+    titleEl.textContent = nameParts.length ? nameParts.join(' ') : usuario.id || 'Perfil seleccionado';
+  }
+
+  const rolePill = document.getElementById('adminUserRolePill');
+  if (rolePill) {
+    if (usuario.rol) {
+      rolePill.textContent = usuario.rol;
+      rolePill.style.display = '';
+    } else {
+      rolePill.style.display = 'none';
+    }
+  }
+}
+
+function limpiarUsuarioForm() {
+  const fieldIds = [
+    'adminUserId',
+    'adminUserMail',
+    'adminUserNombre',
+    'adminUserApellido',
+    'adminUserRol',
+    'adminUserPosicion',
+    'adminUserSector',
+    'adminUserCentros',
+    'adminUserJefe',
+    'adminUserGerente1',
+    'adminUserGerente2',
+    'adminUserPassword',
+    'adminUserPasswordConfirm',
+  ];
+  fieldIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const titleEl = document.getElementById('adminUserTitle');
+  if (titleEl) titleEl.textContent = 'Perfil sin selecciÃ³n';
+  const rolePill = document.getElementById('adminUserRolePill');
+  if (rolePill) rolePill.style.display = 'none';
+}
+
+function markUsuarioDirty() {
+  if (!adminSelectedUser || adminUsuarioSaving) return;
+  adminUsuarioDirty = true;
+  updateUsuarioButtons();
+  updateUsuarioHint();
+}
+
+function updateUsuarioButtons() {
+  const guardarBtn = document.getElementById('adminUserGuardar');
+  const resetBtn = document.getElementById('adminUserReset');
+  const hasSelection = !!adminSelectedUser;
+  const shouldDisable = !hasSelection || adminUsuarioSaving || !adminUsuarioDirty;
+  if (guardarBtn) guardarBtn.disabled = shouldDisable;
+  if (resetBtn) resetBtn.disabled = shouldDisable;
+}
+
+function updateUsuarioHint() {
+  const hintEl = document.getElementById('adminUserHint');
+  if (!hintEl) return;
+  if (!adminSelectedUser) {
+    hintEl.textContent = 'SeleccionÃ¡ un usuario para editarlo.';
+  } else if (adminUsuarioSaving) {
+    hintEl.textContent = 'Guardando cambios...';
+  } else if (adminUsuarioDirty) {
+    hintEl.textContent = 'Hay cambios sin guardar.';
+  } else {
+    hintEl.textContent = 'Sin cambios pendientes.';
+  }
+}
+
+function restaurarUsuarioSeleccionado() {
+  if (!adminOriginalUser || adminUsuarioSaving) return;
+  rellenarUsuarioForm(adminOriginalUser);
+  adminUsuarioDirty = false;
+  updateUsuarioButtons();
+  updateUsuarioHint();
+}
+
+function collectUsuarioFormValues() {
+  const getValue = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  };
+  const centrosRaw = getValue('adminUserCentros');
+  const centros = centrosRaw
+    ? centrosRaw.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean)
+    : [];
+
+  return {
+    id: getValue('adminUserId'),
+    mail: getValue('adminUserMail').toLowerCase(),
+    nombre: getValue('adminUserNombre'),
+    apellido: getValue('adminUserApellido'),
+    rol: getValue('adminUserRol'),
+    posicion: getValue('adminUserPosicion'),
+    sector: getValue('adminUserSector'),
+    centros,
+    jefe: getValue('adminUserJefe'),
+    gerente1: getValue('adminUserGerente1'),
+    gerente2: getValue('adminUserGerente2'),
+    password: getValue('adminUserPassword'),
+    passwordConfirm: getValue('adminUserPasswordConfirm'),
+  };
+}
+
+function buildUsuarioPayload(values) {
+  if (!adminOriginalUser) return null;
+  const payload = {};
+  const normalize = (value) => (value || '').trim();
+  const normalizeLower = (value) => normalize(value).toLowerCase();
+
+  if (normalize(values.nombre) !== normalize(adminOriginalUser.nombre)) {
+    payload.nombre = values.nombre || null;
+  }
+  if (normalize(values.apellido) !== normalize(adminOriginalUser.apellido)) {
+    payload.apellido = values.apellido || null;
+  }
+  if (normalize(values.rol) !== normalize(adminOriginalUser.rol)) {
+    payload.rol = values.rol || null;
+  }
+  if (normalize(values.posicion) !== normalize(adminOriginalUser.posicion)) {
+    payload.posicion = values.posicion || null;
+  }
+  if (normalize(values.sector) !== normalize(adminOriginalUser.sector)) {
+    payload.sector = values.sector || null;
+  }
+  if (normalizeLower(values.mail) !== normalizeLower(adminOriginalUser.mail)) {
+    payload.mail = values.mail || null;
+  }
+
+  const originalCentros = Array.isArray(adminOriginalUser.centros)
+    ? adminOriginalUser.centros.map((c) => c.trim()).filter(Boolean)
+    : [];
+  const currentCentros = values.centros;
+  if (originalCentros.join(',') !== currentCentros.join(',')) {
+    payload.centros = currentCentros;
+  }
+
+  if (normalizeLower(values.jefe) !== normalizeLower(adminOriginalUser.jefe)) {
+    payload.jefe = values.jefe || null;
+  }
+  if (normalizeLower(values.gerente1) !== normalizeLower(adminOriginalUser.gerente1)) {
+    payload.gerente1 = values.gerente1 || null;
+  }
+  if (normalizeLower(values.gerente2) !== normalizeLower(adminOriginalUser.gerente2)) {
+    payload.gerente2 = values.gerente2 || null;
+  }
+
+  if (values.password) {
+    payload.password = values.password;
+  }
+
+  return payload;
+}
+
+async function guardarUsuarioSeleccionado() {
+  if (!adminSelectedUser || adminUsuarioSaving) return;
+
+  const values = collectUsuarioFormValues();
+  if (!values.id) {
+    toast('ID de usuario no vÃ¡lido');
+    return;
+  }
+  if (values.password && values.password !== values.passwordConfirm) {
+    toast('Las contraseÃ±as no coinciden');
+    return;
+  }
+
+  const payload = buildUsuarioPayload(values);
+  if (!payload || Object.keys(payload).length === 0) {
+    toast('No hay cambios para guardar');
+    adminUsuarioDirty = false;
+    updateUsuarioButtons();
+    updateUsuarioHint();
+    return;
+  }
+
+  setUsuarioSaving(true);
+  try {
+    const response = await api(`/admin/usuarios/${encodeURIComponent(values.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    if (!response?.ok) {
+      throw response?.error || new Error('No se pudo guardar el usuario');
+    }
+    const updatedUser = response.usuario;
+    toast('Usuario actualizado correctamente');
+    adminSelectedUserId = updatedUser.id;
+    selectUsuario(updatedUser, adminSelectedRow, { silent: true });
+    adminUsuarioDirty = false;
+    updateUsuarioButtons();
+    updateUsuarioHint();
+    await loadUsuarios();
+  } catch (error) {
+    console.error('Error al guardar usuario:', error);
+    toast(error?.message || 'Error al guardar el usuario');
+  } finally {
+    setUsuarioSaving(false);
+  }
+}
+
+function setUsuarioSaving(isSaving) {
+  adminUsuarioSaving = !!isSaving;
+  updateUsuarioButtons();
+  updateUsuarioHint();
 }
 
 function deleteUsuario(id) {
@@ -4943,6 +5570,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     initPreferencesPage();
   }
 
+  if (currentPage === "notificaciones.html") {
+    try {
+      const summary = await loadNotificationsSummary({ markAsRead: true });
+      renderNotificationsPage(summary);
+    } catch (error) {
+      console.error(error);
+      toast(error?.message || "No se pudieron cargar las notificaciones");
+    }
+  }
+
   applyPreferences(preferences);
   finalizePage();
 });
@@ -5029,14 +5666,14 @@ function updateMenuVisibility() {
   }
 }
 
-// Llamar a la funci�n cuando se actualiza el estado de las notificaciones
+// Llamar a la funciï¿½n cuando se actualiza el estado de las notificaciones
 const originalRenderNotificationsPage = renderNotificationsPage;
 renderNotificationsPage = function(data) {
   originalRenderNotificationsPage(data);
   updateMenuVisibility();
 };
 
-// ====== SHIMS DE COMPATIBILIDAD (parche r�pido) ======
+// ====== SHIMS DE COMPATIBILIDAD (parche rï¿½pido) ======
 var fmtMoney   = typeof fmtMoney   === "function" ? fmtMoney   : (v) => formatCurrency(v);
 var fmtDateTime= typeof fmtDateTime=== "function" ? fmtDateTime: (v) => formatDateTime(v);
 var fmtNumber  = typeof fmtNumber  === "function" ? fmtNumber  : (v) => {
@@ -5081,7 +5718,7 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   const detMeta = $("#detMeta");
   const tblItems = $("#tblItems tbody");
 
-  // Eventos de filtros y paginaci�n
+  // Eventos de filtros y paginaciï¿½n
   $("#frmFilters").addEventListener("submit", (e)=>{ e.preventDefault(); state.pageMias=0; state.pagePend=0; loadQueues(); });
   $("#btnLimpiar").addEventListener("click", ()=>{ /* limpia inputs y reload */ loadQueues(); });
   $("#pgPrevMias").onclick = ()=>{ state.pageMias = Math.max(0, state.pageMias-1); loadQueues({only:"mias"}); };
@@ -5170,7 +5807,7 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   function renderMeta(s) {
     return `
       <div><b>Centro:</b> ${esc(s.centro)} | <b>Sector:</b> ${esc(s.sector)} | <b>Criticidad:</b> ${esc(s.criticidad || "-")}</div>
-      <div><b>Justificaci�n:</b> ${esc(s.justificacion || "-")}</div>
+      <div><b>Justificaciï¿½n:</b> ${esc(s.justificacion || "-")}</div>
       <div><b>Total estimado:</b> <span id="detTotal">${fmtMoney(s.total_monto || 0)}</span></div>
     `;
   }
@@ -5470,6 +6107,16 @@ var skeletonize = typeof skeletonize === "function" ? skeletonize : (sel, opts) 
   loadStats();
   updateMenuVisibility();
 })();
+
+
+
+
+
+
+
+
+
+
 
 
 

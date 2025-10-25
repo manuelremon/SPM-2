@@ -90,6 +90,21 @@ def obtener_catalogos():
                 if warning:
                     warnings.append(warning)
                 data[resource] = items or []
+            # Agregar catálogos adicionales proporcionales a los campos legacy
+            centros = con.execute(
+                "SELECT DISTINCT centro FROM solicitudes WHERE centro IS NOT NULL AND centro <> ''"
+            ).fetchall()
+            legacy_centros = [
+                {"codigo": row["centro"], "nombre": row["centro"], "legacy": True}
+                for row in centros
+                if row.get("centro")
+            ]
+            if legacy_centros:
+                existing_centros = {item["codigo"] for item in data.get("centros", [])}
+                merged = data.get("centros", []) + [
+                    item for item in legacy_centros if item["codigo"] not in existing_centros
+                ]
+                data["centros"] = merged
     except sqlite3.Error:
         return {"ok": False, "error": {"code": "DB_ERROR", "message": "DB error"}}, 500
     response: Dict[str, Any] = {"ok": True, "data": data}
@@ -125,15 +140,17 @@ def obtener_almacenes():
     # if not uid:
     #     return {"ok": False, "error": {"code": "NOAUTH", "message": "No autenticado"}}, 401
     centro = (request.args.get("centro") or "").strip() or None
-    params = (centro, centro)
+    params = (centro, centro, centro)
     with get_connection() as con:
         rows = con.execute(
             """
             SELECT id, codigo, nombre, centro_codigo, activo
             FROM catalog_almacenes
             WHERE activo = 1
-              AND (? IS NULL OR centro_codigo = ?)
-            ORDER BY nombre
+              AND (? IS NULL OR centro_codigo IS NULL OR centro_codigo = ?)
+            ORDER BY
+              CASE WHEN centro_codigo = ? THEN 0 ELSE 1 END,
+              nombre COLLATE NOCASE
             """,
             params,
         ).fetchall()
