@@ -2006,39 +2006,33 @@ function populateCentroSelect() {
 
 async function cargarAlmacenes(centro) {
   const url = centro ? `/api/almacenes?centro=${encodeURIComponent(centro)}` : "/api/almacenes";
-  let response;
   try {
-    response = await fetch(url);
+    const response = await api(url);
+    const data = Array.isArray(response) ? response : response?.items || [];
+    const sel = document.getElementById("almacen");
+    if (!sel) {
+      return;
+    }
+    sel.innerHTML = '<option value="">Seleccioná un almacén</option>';
+    data.forEach((a) => {
+      if (!a) {
+        return;
+      }
+      const id = `${a.codigo || a.id_almacen || ""}`.trim();
+      if (!id) {
+        return;
+      }
+      const nombre = `${a.nombre || ""}`.trim();
+      const label = nombre ? `${id} - ${nombre}` : id;
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
   } catch (error) {
     console.error("Error cargando almacenes", error);
-    return;
+    toast("No se pudieron cargar los almacenes");
   }
-  if (!response.ok) {
-    console.error("Error cargando almacenes", response.status);
-    return;
-  }
-  const payload = await response.json();
-  const data = Array.isArray(payload) ? payload : payload?.items || [];
-  const sel = document.getElementById("almacen");
-  if (!sel) {
-    return;
-  }
-  sel.innerHTML = '<option value="">Seleccion? un almac?n</option>';
-  data.forEach((a) => {
-    if (!a) {
-      return;
-    }
-    const id = `${a.id_almacen ?? ""}`.trim();
-    if (!id) {
-      return;
-    }
-    const nombre = `${a.nombre ?? ""}`.trim();
-    const label = nombre ? `${id} - ${nombre}` : id;
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = label;
-    sel.appendChild(opt);
-  });
 }
 async function initCreateSolicitudPage() {
   await loadCatalogData();

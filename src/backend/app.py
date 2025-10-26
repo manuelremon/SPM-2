@@ -65,12 +65,6 @@ def create_app() -> Flask:
                 response.headers["Content-Type"] = "text/html; charset=utf-8"
         return response
 
-    # try:
-    #     init_db.build_db(force=False)
-    # except Exception as e:
-    #     app.logger.exception("Failed to initialize database")
-    #     app.logger.info("Continuing without database initialization")
-
     @app.before_request
     def _attach_request_id():
         g.reqid = request.headers.get(
