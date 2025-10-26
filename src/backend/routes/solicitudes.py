@@ -1090,7 +1090,7 @@ def export_solicitudes_excel():
                     aprobador_name = ""
                     if len(sol) > 12 and sol[12]:  # aprobador_id
                         try:
-                            aprobador = con.execute("SELECT nombre FROM usuarios WHERE id = ?", (sol[12],)).fetchone()
+                            aprobador = con.execute("SELECT nombre FROM usuarios WHERE id_spm = ?", (sol[12],)).fetchone()
                             if aprobador:
                                 aprobador_name = aprobador[0] or ""
                         except Exception:
