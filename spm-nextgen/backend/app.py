@@ -9,7 +9,13 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+from .routes import catalogos_bp, solicitudes_bp, materiales_bp
+
 engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
+
+app.register_blueprint(catalogos_bp)
+app.register_blueprint(solicitudes_bp)
+app.register_blueprint(materiales_bp)
 
 @app.route("/api/health")
 def health_check():
