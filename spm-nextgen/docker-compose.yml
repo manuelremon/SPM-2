@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: spm_db
+    env_file:
+      - ./.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    container_name: spm_backend
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+  frontend:
+    build: ./frontend
+    container_name: spm_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  migrator:
+    build: ./backend
+    container_name: spm_migrator
+    volumes:
+      - .:/app
+      - ../src/backend:/legacy_db
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    command: ["python", "migrate_data.py", "/legacy_db/spm.db"]
+
+volumes:
+  postgres_data:

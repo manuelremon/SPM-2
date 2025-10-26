@@ -178,7 +178,7 @@ th.sortable[data-sort="none"] .sort-icon{opacity:.45;}
 .form-pane--solicitud{gap:clamp(1.1rem,3vw,1.7rem);}
 .form-pane--solicitud .form-row{display:grid;gap:clamp(.85rem,2.5vw,1.4rem);}
 .form-pane--solicitud .form-row--cols-3{grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));}
-.form-pane--solicitud .form-row--cols-2{grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));max-width:50%;}
+.form-pane--solicitud .form-row--cols-2{grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));}
 .form-pane--solicitud .field--textarea textarea{min-height:8rem;}
 .form-pane--solicitud .field__actions{margin-top:.85rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;}
 .form-pane--solicitud .form-actions{justify-content:flex-end;margin-top:.25rem;}
